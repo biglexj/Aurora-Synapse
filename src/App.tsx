@@ -45,7 +45,7 @@ export default function App() {
   const [apps, setApps] = useState<AppTarget[]>([]);
   const [devices, setDevices] = useState<DeviceNode[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>("local_pc");
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("windows");
   const [inputText, setInputText] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("Aplicaciones");
@@ -54,14 +54,26 @@ export default function App() {
   const [isDispatching, setIsDispatching] = useState<boolean>(false);
   const [failedIcons, setFailedIcons] = useState<Record<string, boolean>>({});
 
-  // Settings State
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  // Mobile & Theme State
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem("synapse_theme") as "dark" | "light") || "dark";
+  });
+  const [androidBgResident, setAndroidBgResident] = useState<boolean>(true);
+  const [androidAutoBoot, setAndroidAutoBoot] = useState<boolean>(false);
+
+  // Settings Modal
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [settings, setSettings] = useState<SynapseSettings>({
     autostart: false,
     minimize_to_tray: true,
     lan_discovery: true,
   });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("synapse_theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     loadInitialData();
@@ -82,10 +94,21 @@ export default function App() {
       const pairedDevices = await invoke<DeviceNode[]>("get_paired_devices");
       const currentSettings = await invoke<SynapseSettings>("get_synapse_settings");
       const mobileCheck = await invoke<boolean>("is_mobile_platform").catch(() => /Android|iPhone|iPad/i.test(navigator.userAgent));
+      const isMob = Boolean(mobileCheck) || /Android|iPhone|iPad/i.test(navigator.userAgent);
+      
       setApps(registeredApps);
       setDevices(pairedDevices);
       setSettings(currentSettings);
-      setIsMobile(Boolean(mobileCheck) || /Android|iPhone|iPad/i.test(navigator.userAgent));
+      setIsMobile(isMob);
+
+      // Default platform selection based on active OS
+      if (isMob) {
+        setSelectedPlatform("android");
+        setSelectedDevice("android_phone");
+      } else {
+        setSelectedPlatform("windows");
+        setSelectedDevice("local_pc");
+      }
     } catch (err) {
       console.error("Error al cargar datos iniciales:", err);
     }
@@ -171,7 +194,6 @@ export default function App() {
 
   const platformsList = useMemo(() => {
     return [
-      { id: "all", label: "Todos los S.O.", icon: "🌐" },
       { id: "windows", label: "Windows", icon: "🪟" },
       { id: "android", label: "Android", icon: "📱" },
       { id: "linux", label: "Linux", icon: "🐧" },
@@ -195,7 +217,7 @@ export default function App() {
       }
 
       const matchesPlatform =
-        selectedPlatform === "all" ||
+        !selectedPlatform ||
         (app.platforms && app.platforms.includes(selectedPlatform));
 
       return matchesSearch && matchesCat && matchesPlatform;
@@ -253,6 +275,14 @@ export default function App() {
               ))}
             </div>
           </div>
+
+          <button
+            className="theme-quick-btn"
+            title={`Cambiar a modo ${theme === "dark" ? "claro" : "oscuro"}`}
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
 
           <button
             className="settings-trigger-btn"
@@ -364,8 +394,15 @@ export default function App() {
           <div className="empty-apps-state">
             <span className="empty-icon">🔍</span>
             <h3>No se encontraron aplicaciones</h3>
-            <p>Prueba seleccionando "Todos los S.O." o cambiando la categoría activa.</p>
-            <button className="empty-reset-btn" onClick={() => { setSelectedPlatform("all"); setSelectedCategory("Aplicaciones"); setSearchQuery(""); }}>
+            <p>Prueba seleccionando otro S.O. o cambiando la categoría activa.</p>
+            <button
+              className="empty-reset-btn"
+              onClick={() => {
+                setSelectedPlatform(isMobile ? "android" : "windows");
+                setSelectedCategory("Aplicaciones");
+                setSearchQuery("");
+              }}
+            >
               Restablecer Filtros
             </button>
           </div>
@@ -466,6 +503,28 @@ export default function App() {
             </div>
 
             <div className="modal-body">
+              {/* Theme Preference */}
+              <div className="setting-row">
+                <div className="setting-info">
+                  <span className="setting-title">Tema de la Interfaz</span>
+                  <span className="setting-desc">Personaliza la apariencia visual en modo oscuro medianoche o claro.</span>
+                </div>
+                <div className="theme-toggle-chips">
+                  <button
+                    className={`theme-chip ${theme === "dark" ? "active" : ""}`}
+                    onClick={() => setTheme("dark")}
+                  >
+                    🌙 Oscuro
+                  </button>
+                  <button
+                    className={`theme-chip ${theme === "light" ? "active" : ""}`}
+                    onClick={() => setTheme("light")}
+                  >
+                    ☀️ Claro
+                  </button>
+                </div>
+              </div>
+
               {!isMobile ? (
                 <>
                   <div className="setting-row">
@@ -499,19 +558,43 @@ export default function App() {
                   </div>
                 </>
               ) : (
-                <div className="setting-row">
-                  <div className="setting-info">
-                    <span className="setting-title">Enrutador Móvil Aurora (Android)</span>
-                    <span className="setting-desc">Receptor activo de contenidos y enlaces para despacho instantáneo hacia tu PC.</span>
+                <>
+                  <div className="setting-row">
+                    <div className="setting-info">
+                      <span className="setting-title">Mantenerse en Segundo Plano (Servicio Android)</span>
+                      <span className="setting-desc">Mantiene activo el listener de enrutamiento y recepción en Android.</span>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={androidBgResident}
+                        onChange={() => setAndroidBgResident(!androidBgResident)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
                   </div>
-                  <span className="active-badge">Integrado</span>
-                </div>
+
+                  <div className="setting-row">
+                    <div className="setting-info">
+                      <span className="setting-title">Auto-inicio con el Dispositivo (Boot)</span>
+                      <span className="setting-desc">Inicia el enrutador de Synapse al encender tu teléfono.</span>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={androidAutoBoot}
+                        onChange={() => setAndroidAutoBoot(!androidAutoBoot)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+                </>
               )}
 
               <div className="setting-row">
                 <div className="setting-info">
                   <span className="setting-title">Descubrimiento LAN (Puerto 49295)</span>
-                  <span className="setting-desc">Permite recibir enlaces y medios enviados desde teléfonos Android en la red local.</span>
+                  <span className="setting-desc">Permite enviar y recibir enlaces y medios entre dispositivos en la misma red local.</span>
                 </div>
                 <span className="active-badge">Activo</span>
               </div>

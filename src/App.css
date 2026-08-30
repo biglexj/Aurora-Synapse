@@ -126,6 +126,13 @@ body {
   display: flex;
   align-items: flex-end;
   gap: 8px;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .header-right-actions {
+    width: auto;
+  }
 }
 
 /* Device Switcher */
@@ -133,6 +140,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
 }
 
 .device-label {
@@ -145,28 +153,35 @@ body {
 
 .device-pills {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   background: var(--surface-color);
   padding: 4px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
-  height: 38px;
+  min-height: 44px;
+  height: auto;
   align-items: center;
+  width: 100%;
 }
 
 .device-pill {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 5px 12px;
+  padding: 6px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11.5px;
+  line-height: 1.25;
   background: transparent;
   color: var(--text-secondary);
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
-  height: 28px;
+  min-height: 36px;
+  height: auto;
+  flex: 1;
+  text-align: center;
 }
 
 .device-pill:hover {
@@ -180,14 +195,15 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* Settings Trigger Button */
+/* Theme & Settings Trigger Buttons */
+.theme-quick-btn,
 .settings-trigger-btn {
   background: var(--surface-color);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   font-size: 16px;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -198,11 +214,44 @@ body {
   flex-shrink: 0;
 }
 
+.theme-quick-btn:hover,
 .settings-trigger-btn:hover {
   color: var(--text-primary);
   border-color: var(--border-active);
   background: var(--surface-elevated);
+}
+
+.settings-trigger-btn:hover {
   transform: rotate(30deg);
+}
+
+/* Theme Toggle in Settings Modal */
+.theme-toggle-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-chip {
+  background: var(--surface-container);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.theme-chip:hover {
+  color: var(--text-primary);
+  border-color: var(--border-active);
+}
+
+.theme-chip.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  color: #60a5fa;
 }
 
 /* Dispatch Card */
