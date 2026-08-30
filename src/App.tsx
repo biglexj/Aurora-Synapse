@@ -14,7 +14,7 @@ interface AppTarget {
   port: number;
   supported_domains: string[];
   is_web_app: boolean;
-  status: "NUEVA" | "ACTUALIZADA" | "BETA" | "EXPERIMENTAL" | "PROXIMAMENTE" | string;
+  status: "NUEVA" | "ACTUALIZADA" | "BETA" | "EXPERIMENTAL" | "PROXIMAMENTE" | "DISPONIBLE" | string;
 }
 
 interface DeviceNode {
@@ -109,7 +109,7 @@ export default function App() {
   };
 
   const categories = useMemo(() => {
-    return ["Todos", "Multimedia", "IA", "Desarrollo", "Utilidades", "Experimentos"];
+    return ["Todos", "Multimedia", "IA", "Desarrollo", "Web", "Utilidades", "Experimentos"];
   }, []);
 
   const filteredApps = useMemo(() => {
@@ -137,6 +137,8 @@ export default function App() {
         return "badge-experimental";
       case "PROXIMAMENTE":
         return "badge-proximamente";
+      case "DISPONIBLE":
+        return "badge-disponible";
       default:
         return "badge-default";
     }
@@ -302,7 +304,7 @@ export default function App() {
                       : inputText.trim()
                       ? "Enviar"
                       : app.is_web_app
-                      ? "Abrir"
+                      ? "Visitar"
                       : "Lanzar"}
                   </button>
                 </div>
