@@ -101,30 +101,28 @@ body {
 /* Header */
 .synapse-header {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border-subtle);
-}
-
-@media (min-width: 768px) {
-  .synapse-header {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
+  gap: 12px;
+  width: 100%;
 }
 
 .header-brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .brand-logo {
-  font-size: 28px;
-  width: 48px;
-  height: 48px;
+  font-size: 26px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -135,45 +133,79 @@ body {
 }
 
 .launchpad-tag {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   color: #ec4899;
   text-transform: uppercase;
 }
 
 .brand-title {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 900;
   letter-spacing: 0.5px;
   color: var(--text-primary);
+  line-height: 1.15;
 }
 
-.brand-subtitle {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-/* Right Header Actions */
-.header-right-actions {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  width: 100%;
-}
-
-@media (min-width: 768px) {
-  .header-right-actions {
-    width: auto;
+@media (min-width: 680px) {
+  .brand-title {
+    font-size: 24px;
+  }
+  .brand-logo {
+    font-size: 28px;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
   }
 }
 
-/* Device Switcher */
+.brand-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Settings Trigger Button */
+.settings-trigger-btn {
+  background: var(--surface-color);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 18px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.settings-trigger-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-active);
+  background: var(--surface-elevated);
+  transform: rotate(30deg);
+}
+
+/* Device Switcher Section */
+.device-switcher-section {
+  width: 100%;
+}
+
 .device-switcher {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  flex: 1;
+  width: 100%;
 }
 
 .device-label {
@@ -186,10 +218,10 @@ body {
 
 .device-pills {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   background: var(--surface-color);
   padding: 4px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--border-subtle);
   height: 48px;
   min-height: 48px;
@@ -202,10 +234,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 0 12px;
+  gap: 8px;
+  padding: 0 14px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   height: 40px;
   min-height: 40px;
@@ -223,7 +255,6 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
 }
 
 .device-pill:hover {
@@ -235,35 +266,6 @@ body {
   color: var(--primary-color);
   font-weight: 600;
   box-shadow: var(--card-shadow);
-}
-
-/* Settings Trigger Button */
-.settings-trigger-btn {
-  background: var(--surface-color);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  font-size: 19px;
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
-  min-height: 48px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin: 0;
-  flex-shrink: 0;
-  align-self: flex-end;
-  overflow: hidden;
-}
-
-.settings-trigger-btn:hover {
-  color: var(--text-primary);
-  border-color: var(--border-active);
-  background: var(--surface-elevated);
-  transform: rotate(30deg);
 }
 
 /* Theme Toggle in Settings Modal */

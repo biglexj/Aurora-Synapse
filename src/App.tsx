@@ -258,33 +258,33 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right Header Actions: Device Switcher & Settings */}
-        <div className="header-right-actions">
-          <div className="device-switcher">
-            <span className="device-label">Dispositivo Destino:</span>
-            <div className="device-pills">
-              {devices.map((dev) => (
-                <button
-                  key={dev.id}
-                  className={`device-pill ${selectedDevice === dev.id ? "active" : ""}`}
-                  onClick={() => handleDeviceChange(dev.id)}
-                >
-                  <span>{dev.device_type === "mobile" ? "📱" : "💻"}</span>
-                  <span>{dev.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            className="settings-trigger-btn"
-            title="Configuración de Aurora Synapse"
-            onClick={() => setIsSettingsOpen(true)}
-          >
-            ⚙️
-          </button>
-        </div>
+        <button
+          className="settings-trigger-btn"
+          title="Configuración de Aurora Synapse"
+          onClick={() => setIsSettingsOpen(true)}
+        >
+          ⚙️
+        </button>
       </header>
+
+      {/* Target Device Switcher (Full Width) */}
+      <section className="device-switcher-section">
+        <div className="device-switcher">
+          <span className="device-label">Dispositivo Destino:</span>
+          <div className="device-pills">
+            {devices.map((dev) => (
+              <button
+                key={dev.id}
+                className={`device-pill ${selectedDevice === dev.id ? "active" : ""}`}
+                onClick={() => handleDeviceChange(dev.id)}
+              >
+                <span>{dev.device_type === "mobile" ? "📱" : "💻"}</span>
+                <span>{dev.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Smart Input & Dispatch Area */}
       <section className="dispatch-card">
