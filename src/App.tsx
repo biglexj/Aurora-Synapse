@@ -38,7 +38,7 @@ export default function App() {
   const [selectedDevice, setSelectedDevice] = useState<string>("local_pc");
   const [inputText, setInputText] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
+  const [selectedCategory, setSelectedCategory] = useState<string>("Aplicaciones");
   const [classification, setClassification] = useState<ClassificationResult | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
   const [isDispatching, setIsDispatching] = useState<boolean>(false);
@@ -111,7 +111,7 @@ export default function App() {
   };
 
   const categories = useMemo(() => {
-    return ["Todos", "Multimedia", "IA", "Desarrollo", "Web", "Utilidades", "Experimentos"];
+    return ["Aplicaciones", "Web", "Multimedia", "IA", "Desarrollo", "Utilidades", "Experimentos"];
   }, []);
 
   const filteredApps = useMemo(() => {
@@ -120,7 +120,16 @@ export default function App() {
         app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         app.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         app.category.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCat = selectedCategory === "Todos" || app.category === selectedCategory;
+
+      let matchesCat = false;
+      if (selectedCategory === "Aplicaciones") {
+        matchesCat = !app.is_web_app;
+      } else if (selectedCategory === "Web") {
+        matchesCat = app.is_web_app;
+      } else {
+        matchesCat = app.category === selectedCategory;
+      }
+
       return matchesSearch && matchesCat;
     });
   }, [apps, searchQuery, selectedCategory]);
