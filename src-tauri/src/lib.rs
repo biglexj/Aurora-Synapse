@@ -693,6 +693,11 @@ fn set_minimize_to_tray_setting(enable: bool) -> bool {
     enable
 }
 
+#[tauri::command]
+fn is_mobile_platform() -> bool {
+    cfg!(mobile)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[allow(unused_mut)]
@@ -798,7 +803,8 @@ pub fn run() {
             dispatch_content,
             get_synapse_settings,
             set_autostart_setting,
-            set_minimize_to_tray_setting
+            set_minimize_to_tray_setting,
+            is_mobile_platform
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

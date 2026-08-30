@@ -56,6 +56,7 @@ export default function App() {
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   const [settings, setSettings] = useState<SynapseSettings>({
     autostart: false,
     minimize_to_tray: true,
@@ -80,9 +81,11 @@ export default function App() {
       const registeredApps = await invoke<AppTarget[]>("get_registered_apps");
       const pairedDevices = await invoke<DeviceNode[]>("get_paired_devices");
       const currentSettings = await invoke<SynapseSettings>("get_synapse_settings");
+      const mobileCheck = await invoke<boolean>("is_mobile_platform").catch(() => /Android|iPhone|iPad/i.test(navigator.userAgent));
       setApps(registeredApps);
       setDevices(pairedDevices);
       setSettings(currentSettings);
+      setIsMobile(Boolean(mobileCheck) || /Android|iPhone|iPad/i.test(navigator.userAgent));
     } catch (err) {
       console.error("Error al cargar datos iniciales:", err);
     }
@@ -463,35 +466,47 @@ export default function App() {
             </div>
 
             <div className="modal-body">
-              <div className="setting-row">
-                <div className="setting-info">
-                  <span className="setting-title">Iniciar con Windows (Auto-Run)</span>
-                  <span className="setting-desc">Ejecuta Aurora Synapse automáticamente al iniciar el sistema operativo.</span>
-                </div>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={settings.autostart}
-                    onChange={handleToggleAutostart}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-              </div>
+              {!isMobile ? (
+                <>
+                  <div className="setting-row">
+                    <div className="setting-info">
+                      <span className="setting-title">Iniciar con Windows (Auto-Run)</span>
+                      <span className="setting-desc">Ejecuta Aurora Synapse automáticamente al iniciar el sistema operativo.</span>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={settings.autostart}
+                        onChange={handleToggleAutostart}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
 
-              <div className="setting-row">
-                <div className="setting-info">
-                  <span className="setting-title">Minimizar a la Bandeja al Cerrar (X)</span>
-                  <span className="setting-desc">Mantiene el proceso en segundo plano en el System Tray para responder al enrutamiento.</span>
+                  <div className="setting-row">
+                    <div className="setting-info">
+                      <span className="setting-title">Minimizar a la Bandeja al Cerrar (X)</span>
+                      <span className="setting-desc">Mantiene el proceso en segundo plano en el System Tray para responder al enrutamiento.</span>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={settings.minimize_to_tray}
+                        onChange={handleToggleMinimizeToTray}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <div className="setting-row">
+                  <div className="setting-info">
+                    <span className="setting-title">Enrutador Móvil Aurora (Android)</span>
+                    <span className="setting-desc">Receptor activo de contenidos y enlaces para despacho instantáneo hacia tu PC.</span>
+                  </div>
+                  <span className="active-badge">Integrado</span>
                 </div>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={settings.minimize_to_tray}
-                    onChange={handleToggleMinimizeToTray}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-              </div>
+              )}
 
               <div className="setting-row">
                 <div className="setting-info">
