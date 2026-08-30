@@ -447,6 +447,13 @@ body {
   object-fit: cover;
 }
 
+.app-icon-emoji {
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Status Badges */
 .status-badge {
   font-size: 9px;

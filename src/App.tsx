@@ -8,6 +8,7 @@ interface AppTarget {
   category: string;
   description: string;
   icon_path: string;
+  icon_emoji?: string;
   accent_color: string;
   uri_scheme: string;
   web_url?: string;
@@ -41,6 +42,7 @@ export default function App() {
   const [classification, setClassification] = useState<ClassificationResult | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
   const [isDispatching, setIsDispatching] = useState<boolean>(false);
+  const [failedIcons, setFailedIcons] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadInitialData();
@@ -258,6 +260,7 @@ export default function App() {
           {filteredApps.map((app) => {
             const isRec = classification?.recommended_app_id === app.id;
             const isUpcoming = app.status === "PROXIMAMENTE";
+            const hasValidImage = app.icon_path && !failedIcons[app.id];
 
             return (
               <div
@@ -269,15 +272,27 @@ export default function App() {
                 }}
               >
                 <div className="app-card-top">
-                  <div className="app-icon-wrap">
-                    <img
-                      src={app.icon_path}
-                      alt={app.name}
-                      className="app-icon-img"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.opacity = "0.4";
-                      }}
-                    />
+                  <div
+                    className="app-icon-wrap"
+                    style={{
+                      borderColor: !hasValidImage ? app.accent_color : undefined,
+                      background: !hasValidImage
+                        ? `linear-gradient(135deg, ${app.accent_color}22, ${app.accent_color}44)`
+                        : undefined,
+                    }}
+                  >
+                    {hasValidImage ? (
+                      <img
+                        src={app.icon_path}
+                        alt={app.name}
+                        className="app-icon-img"
+                        onError={() => {
+                          setFailedIcons((prev) => ({ ...prev, [app.id]: true }));
+                        }}
+                      />
+                    ) : (
+                      <span className="app-icon-emoji">{app.icon_emoji || "⚡"}</span>
+                    )}
                   </div>
                   <span className={`status-badge ${getStatusBadgeClass(app.status)}`}>
                     {app.status}
