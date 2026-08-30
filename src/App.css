@@ -38,6 +38,14 @@
   margin: 0;
   padding: 0;
   font-family: var(--font-family);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 
 /* Custom Sleek Scrollbar */
@@ -85,7 +93,7 @@ body {
 
 @media (max-width: 680px) {
   .synapse-container {
-    padding: max(52px, env(safe-area-inset-top, 52px)) 16px max(32px, env(safe-area-inset-bottom, 32px)) 16px;
+    padding: max(60px, env(safe-area-inset-top, 60px)) 16px max(36px, env(safe-area-inset-bottom, 36px)) 16px;
     gap: 16px;
   }
 }
@@ -150,7 +158,7 @@ body {
 .header-right-actions {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
 }
 
@@ -181,12 +189,13 @@ body {
   gap: 6px;
   background: var(--surface-color);
   padding: 4px;
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   border: 1px solid var(--border-subtle);
-  height: 44px;
-  min-height: 44px;
+  height: 48px;
+  min-height: 48px;
   align-items: center;
   width: 100%;
+  overflow: hidden;
 }
 
 .device-pill {
@@ -194,11 +203,12 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0 10px;
-  border-radius: 6px;
-  font-size: 11.5px;
-  height: 36px;
-  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  height: 40px;
+  min-height: 40px;
   background: transparent;
   color: var(--text-secondary);
   border: none;
@@ -206,7 +216,14 @@ body {
   transition: all 0.2s ease;
   flex: 1;
   text-align: center;
+  overflow: hidden;
+}
+
+.device-pill span {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .device-pill:hover {
@@ -225,12 +242,12 @@ body {
   background: var(--surface-color);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  font-size: 18px;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: var(--radius-sm);
+  font-size: 19px;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -239,6 +256,7 @@ body {
   margin: 0;
   flex-shrink: 0;
   align-self: flex-end;
+  overflow: hidden;
 }
 
 .settings-trigger-btn:hover {
@@ -457,7 +475,9 @@ body {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .cat-pill:hover {
@@ -493,15 +513,17 @@ body {
   background: var(--surface-color);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 12px;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 5px;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .platform-pill:hover {
