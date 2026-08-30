@@ -14,6 +14,7 @@ interface AppTarget {
   port: number;
   supported_domains: string[];
   is_web_app: boolean;
+  status: "NUEVA" | "ACTUALIZADA" | "BETA" | "EXPERIMENTAL" | "PROXIMAMENTE" | string;
 }
 
 interface DeviceNode {
@@ -77,6 +78,12 @@ export default function App() {
     const appId = targetAppId || classification?.recommended_app_id;
     if (!appId) return;
 
+    const targetApp = apps.find((a) => a.id === appId);
+    if (targetApp?.status === "PROXIMAMENTE") {
+      setStatusMessage({ text: `${targetApp.name} estará disponible próximamente.`, type: "info" });
+      return;
+    }
+
     setIsDispatching(true);
     setStatusMessage({ text: "Despachando a través de Aurora Synapse...", type: "info" });
 
@@ -102,10 +109,8 @@ export default function App() {
   };
 
   const categories = useMemo(() => {
-    const cats = new Set<string>();
-    apps.forEach((a) => cats.add(a.category));
-    return ["Todos", ...Array.from(cats)];
-  }, [apps]);
+    return ["Todos", "Multimedia", "IA", "Desarrollo", "Utilidades", "Experimentos"];
+  }, []);
 
   const filteredApps = useMemo(() => {
     return apps.filter((app) => {
@@ -120,6 +125,23 @@ export default function App() {
 
   const recommendedApp = apps.find((a) => a.id === classification?.recommended_app_id);
 
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case "NUEVA":
+        return "badge-nueva";
+      case "ACTUALIZADA":
+        return "badge-actualizada";
+      case "BETA":
+        return "badge-beta";
+      case "EXPERIMENTAL":
+        return "badge-experimental";
+      case "PROXIMAMENTE":
+        return "badge-proximamente";
+      default:
+        return "badge-default";
+    }
+  };
+
   return (
     <div className="synapse-container">
       {/* Header */}
@@ -127,8 +149,9 @@ export default function App() {
         <div className="header-brand">
           <div className="brand-logo">⚡</div>
           <div>
-            <h1 className="brand-title">Aurora Synapse</h1>
-            <p className="brand-subtitle">Orquestador Universal & Router Inteligente de Intención</p>
+            <span className="launchpad-tag">LAUNCHPAD & ROUTER</span>
+            <h1 className="brand-title">TODAS LAS APLICACIONES</h1>
+            <p className="brand-subtitle">Orquestador Universal del Ecosistema Aurora</p>
           </div>
         </div>
 
@@ -156,7 +179,7 @@ export default function App() {
           <input
             type="text"
             className="synapse-input"
-            placeholder="Pega un enlace (DeviantArt, YouTube, Pixiv), ruta de archivo local o texto..."
+            placeholder="Pega un enlace (DeviantArt, YouTube, Pixiv), archivo local o texto para enrutar..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => {
@@ -220,7 +243,7 @@ export default function App() {
           <input
             type="text"
             className="search-input"
-            placeholder="Buscar aplicación..."
+            placeholder="🔍 Buscar aplicación..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -232,12 +255,16 @@ export default function App() {
         <div className="apps-grid">
           {filteredApps.map((app) => {
             const isRec = classification?.recommended_app_id === app.id;
+            const isUpcoming = app.status === "PROXIMAMENTE";
+
             return (
               <div
                 key={app.id}
-                className={`app-card ${isRec ? "card-highlighted" : ""}`}
+                className={`app-card ${isRec ? "card-highlighted" : ""} ${isUpcoming ? "card-upcoming" : ""}`}
                 style={{ "--card-accent": app.accent_color } as React.CSSProperties}
-                onClick={() => handleDispatch(app.id)}
+                onClick={() => {
+                  if (!isUpcoming) handleDispatch(app.id);
+                }}
               >
                 <div className="app-card-top">
                   <div className="app-icon-wrap">
@@ -246,29 +273,37 @@ export default function App() {
                       alt={app.name}
                       className="app-icon-img"
                       onError={(e) => {
-                        // Fallback to initial letter icon
-                        (e.currentTarget as HTMLElement).style.display = "none";
+                        (e.currentTarget as HTMLElement).style.opacity = "0.4";
                       }}
                     />
                   </div>
-                  <span className="app-category">{app.category}</span>
+                  <span className={`status-badge ${getStatusBadgeClass(app.status)}`}>
+                    {app.status}
+                  </span>
                 </div>
 
                 <h3 className="app-name">{app.name}</h3>
                 <p className="app-desc">{app.description}</p>
 
                 <div className="app-footer">
-                  <span className="app-status">
+                  <span className="app-status-info">
                     {app.is_web_app ? "🌐 Web App" : `Puerto ${app.port}`}
                   </span>
                   <button
                     className="card-dispatch-btn"
+                    disabled={isUpcoming}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDispatch(app.id);
                     }}
                   >
-                    {inputText.trim() ? "Enviar" : app.is_web_app ? "Visitar" : "Abrir"}
+                    {isUpcoming
+                      ? "Próximamente"
+                      : inputText.trim()
+                      ? "Enviar"
+                      : app.is_web_app
+                      ? "Abrir"
+                      : "Lanzar"}
                   </button>
                 </div>
               </div>

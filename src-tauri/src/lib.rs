@@ -13,6 +13,7 @@ pub struct AppTarget {
     pub port: u16,
     pub supported_domains: Vec<String>,
     pub is_web_app: bool,
+    pub status: String, // "NUEVA", "ACTUALIZADA", "BETA", "EXPERIMENTAL", "PROXIMAMENTE"
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -37,7 +38,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
         AppTarget {
             id: "gallerydl".into(),
             name: "Gallery-DL GUI".into(),
-            category: "Galerías & Arte".into(),
+            category: "Multimedia".into(),
             description: "Descargas masivas desde DeviantArt, Pixiv, ArtStation, Danbooru e imágenes.".into(),
             icon_path: "/assets/icons/gallery-dl-gui/icon.webp".into(),
             accent_color: "#38bdf8".into(),
@@ -56,11 +57,12 @@ fn get_registered_apps() -> Vec<AppTarget> {
                 "imgur.com".into(),
             ],
             is_web_app: false,
+            status: "NUEVA".into(),
         },
         AppTarget {
             id: "luna".into(),
             name: "Luna Fetch".into(),
-            category: "Video & Audio".into(),
+            category: "Multimedia".into(),
             description: "Descarga de medios desde YouTube, TikTok, Instagram, Twitter/X y SoundCloud.".into(),
             icon_path: "/assets/icons/luna-fetch/icon.webp".into(),
             accent_color: "#818cf8".into(),
@@ -79,11 +81,12 @@ fn get_registered_apps() -> Vec<AppTarget> {
                 "twitch.tv".into(),
             ],
             is_web_app: false,
+            status: "ACTUALIZADA".into(),
         },
         AppTarget {
             id: "prisma".into(),
             name: "Prisma".into(),
-            category: "Reproductor & Cast".into(),
+            category: "Multimedia".into(),
             description: "Reproductor multimedia de alta fidelidad, sincronización de letras y Handoff.".into(),
             icon_path: "/assets/icons/prisma/icon.webp".into(),
             accent_color: "#60a5fa".into(),
@@ -100,11 +103,12 @@ fn get_registered_apps() -> Vec<AppTarget> {
                 ".webm".into(),
             ],
             is_web_app: false,
+            status: "NUEVA".into(),
         },
         AppTarget {
             id: "elytesia".into(),
             name: "Ely-Tesia".into(),
-            category: "Práctica MIDI".into(),
+            category: "Multimedia".into(),
             description: "Visualizador interactivo de partituras y sintetizador para archivos MIDI.".into(),
             icon_path: "/assets/icons/ely-tesia/icon.webp".into(),
             accent_color: "#f472b6".into(),
@@ -118,11 +122,12 @@ fn get_registered_apps() -> Vec<AppTarget> {
                 ".elytheme.json".into(),
             ],
             is_web_app: false,
+            status: "ACTUALIZADA".into(),
         },
         AppTarget {
             id: "wintts".into(),
             name: "WinTTS".into(),
-            category: "Texto a Voz".into(),
+            category: "IA".into(),
             description: "Sintetizador neuronal offline para locución de textos y artículos a voz WAV.".into(),
             icon_path: "/assets/icons/wintts/icon.webp".into(),
             accent_color: "#34d399".into(),
@@ -135,11 +140,12 @@ fn get_registered_apps() -> Vec<AppTarget> {
                 ".epub".into(),
             ],
             is_web_app: false,
+            status: "ACTUALIZADA".into(),
         },
         AppTarget {
             id: "lyraflow".into(),
             name: "LyraFlow".into(),
-            category: "Transcripción IA".into(),
+            category: "IA".into(),
             description: "Dictado por voz en tiempo real, transcripción de audios y subtitulación IA.".into(),
             icon_path: "/assets/icons/lyraflow/icon.webp".into(),
             accent_color: "#fbbf24".into(),
@@ -150,11 +156,12 @@ fn get_registered_apps() -> Vec<AppTarget> {
                 ".m4a".into(),
             ],
             is_web_app: false,
+            status: "ACTUALIZADA".into(),
         },
         AppTarget {
             id: "davinciflow".into(),
             name: "DaVinci Flow".into(),
-            category: "Edición de Video".into(),
+            category: "Multimedia".into(),
             description: "Automatización de post-producción, marcadores de timeline y exportación.".into(),
             icon_path: "/assets/icons/davinci-flow/icon.webp".into(),
             accent_color: "#a78bfa".into(),
@@ -165,11 +172,12 @@ fn get_registered_apps() -> Vec<AppTarget> {
                 ".drp".into(),
             ],
             is_web_app: false,
+            status: "EXPERIMENTAL".into(),
         },
         AppTarget {
             id: "mouzi".into(),
             name: "MouziFlow".into(),
-            category: "Organizador de Medios".into(),
+            category: "Utilidades".into(),
             description: "Clasificación automática de descargas, renombrado inteligente y orden de biblioteca.".into(),
             icon_path: "/assets/icons/mouziflow/icon.webp".into(),
             accent_color: "#a855f7".into(),
@@ -178,11 +186,12 @@ fn get_registered_apps() -> Vec<AppTarget> {
             port: 49293,
             supported_domains: vec![],
             is_web_app: false,
+            status: "NUEVA".into(),
         },
         AppTarget {
             id: "lienzo".into(),
             name: "Super Galería".into(),
-            category: "Visor Móvil".into(),
+            category: "Multimedia".into(),
             description: "Visor táctil de imágenes y videos sincronizado con la red local de alta fidelidad.".into(),
             icon_path: "/assets/icons/lienzo-gallery/icon.webp".into(),
             accent_color: "#2dd4bf".into(),
@@ -191,24 +200,26 @@ fn get_registered_apps() -> Vec<AppTarget> {
             port: 49294,
             supported_domains: vec![],
             is_web_app: false,
+            status: "ACTUALIZADA".into(),
         },
         AppTarget {
             id: "elychat".into(),
             name: "Ely Chat".into(),
-            category: "Asistente IA".into(),
-            description: "Inteligencia artificial conversacional y portal de soporte del ecosistema.".into(),
-            icon_path: "/assets/icons/aurora-blog/icon.webp".into(),
+            category: "IA".into(),
+            description: "Asistente inteligente conversacional y portal de soporte del ecosistema.".into(),
+            icon_path: "/assets/icons/ely-intelligence/ely-intelligence.webp".into(),
             accent_color: "#10b981".into(),
             uri_scheme: "https://biglexj.com/chat".into(),
             web_url: Some("https://biglexj.com/chat".into()),
             port: 443,
             supported_domains: vec![],
             is_web_app: true,
+            status: "BETA".into(),
         },
         AppTarget {
             id: "codex".into(),
             name: "codex-go".into(),
-            category: "Desarrollo & CLI".into(),
+            category: "Desarrollo".into(),
             description: "Generador de código, herramientas de automatización y agentes de consola.".into(),
             icon_path: "/assets/icons/codex-go/icon.webp".into(),
             accent_color: "#3b82f6".into(),
@@ -217,19 +228,21 @@ fn get_registered_apps() -> Vec<AppTarget> {
             port: 7090,
             supported_domains: vec![],
             is_web_app: false,
+            status: "NUEVA".into(),
         },
         AppTarget {
             id: "pixistore".into(),
             name: "Pixi Store".into(),
-            category: "Catálogo & Temas".into(),
+            category: "Experimentos".into(),
             description: "Tienda comunitaria oficial para temas interactivos, presets y extensiones.".into(),
-            icon_path: "/assets/icons/pixi-store/icon.webp".into(),
+            icon_path: "/assets/icons/aurora-blog/icon.webp".into(),
             accent_color: "#f59e0b".into(),
             uri_scheme: "https://biglexj.com/store".into(),
             web_url: Some("https://biglexj.com/store".into()),
             port: 443,
             supported_domains: vec![],
             is_web_app: true,
+            status: "PROXIMAMENTE".into(),
         },
     ]
 }
@@ -357,6 +370,10 @@ async fn dispatch_content(
 
     let apps = get_registered_apps();
     let target_app = apps.into_iter().find(|a| a.id == app_id).ok_or("Aplicación no encontrada")?;
+
+    if target_app.status == "PROXIMAMENTE" {
+        return Err(format!("{} estará disponible próximamente en el ecosistema.", target_app.name));
+    }
 
     if target_app.is_web_app {
         let url = target_app.web_url.unwrap_or(target_app.uri_scheme);

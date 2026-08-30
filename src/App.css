@@ -1,14 +1,14 @@
 :root {
-  --bg-color: #090d16;
-  --surface-color: #111726;
-  --surface-container: #161e31;
-  --surface-elevated: #1e293b;
+  --bg-color: #080c14;
+  --surface-color: #0f1523;
+  --surface-container: #141c2e;
+  --surface-elevated: #1b253b;
   --primary-color: #3b82f6;
   --primary-glow: rgba(59, 130, 246, 0.35);
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
-  --border-subtle: rgba(148, 163, 184, 0.12);
+  --border-subtle: rgba(148, 163, 184, 0.1);
   --border-active: rgba(59, 130, 246, 0.5);
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -32,9 +32,9 @@ body {
 }
 
 .synapse-container {
-  max-width: 1200px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 24px 20px 48px;
+  padding: 24px 24px 56px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -76,12 +76,19 @@ body {
   box-shadow: 0 0 16px var(--primary-glow);
 }
 
+.launchpad-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ec4899;
+  text-transform: uppercase;
+}
+
 .brand-title {
-  font-size: 22px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #60a5fa, #a5b4fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
 }
 
 .brand-subtitle {
@@ -256,7 +263,7 @@ body {
   opacity: 0.9;
 }
 
-/* Toast */
+/* Status Toast */
 .status-toast {
   padding: 12px 16px;
   border-radius: var(--radius-sm);
@@ -375,7 +382,7 @@ body {
   overflow: hidden;
 }
 
-.app-card:hover {
+.app-card:hover:not(.card-upcoming) {
   transform: translateY(-3px);
   border-color: var(--card-accent);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -386,6 +393,11 @@ body {
   box-shadow: 0 0 0 2px var(--card-accent), 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
+.app-card.card-upcoming {
+  opacity: 0.65;
+  cursor: default;
+}
+
 .app-card-top {
   display: flex;
   justify-content: space-between;
@@ -393,8 +405,8 @@ body {
 }
 
 .app-icon-wrap {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
   overflow: hidden;
   background: var(--surface-container);
@@ -410,14 +422,44 @@ body {
   object-fit: cover;
 }
 
-.app-category {
-  font-size: 10px;
-  font-weight: 600;
+/* Status Badges */
+.status-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 10px;
   text-transform: uppercase;
-  color: var(--text-muted);
-  background: var(--surface-container);
-  padding: 2px 8px;
-  border-radius: 12px;
+}
+
+.badge-nueva {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f472b6;
+  border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.badge-actualizada {
+  background: rgba(6, 182, 212, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.badge-beta {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-experimental {
+  background: rgba(167, 139, 250, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+.badge-proximamente {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .app-name {
@@ -442,7 +484,7 @@ body {
   border-top: 1px solid var(--border-subtle);
 }
 
-.app-status {
+.app-status-info {
   font-size: 10px;
   color: var(--text-muted);
   font-family: monospace;
@@ -460,8 +502,13 @@ body {
   transition: all 0.15s;
 }
 
-.card-dispatch-btn:hover {
+.card-dispatch-btn:hover:not(:disabled) {
   background: var(--card-accent);
   color: white;
   border-color: var(--card-accent);
+}
+
+.card-dispatch-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
