@@ -1,11 +1,17 @@
 use serde::{Deserialize, Serialize};
+
+#[cfg(desktop)]
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+#[cfg(desktop)]
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
+#[cfg(desktop)]
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+#[cfg(desktop)]
 use tauri::{Manager, Emitter};
+#[cfg(desktop)]
 use tauri_plugin_autostart::ManagerExt;
 
+#[cfg(desktop)]
 static MINIMIZE_TO_TRAY: AtomicBool = AtomicBool::new(true);
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -621,9 +627,17 @@ async fn dispatch_content(
 }
 
 #[tauri::command]
-fn get_synapse_settings(app: tauri::AppHandle) -> SynapseSettings {
+fn get_synapse_settings(#[allow(unused)] app: tauri::AppHandle) -> SynapseSettings {
+    #[cfg(desktop)]
     let autostart_enabled = app.autolaunch().is_enabled().unwrap_or(false);
+    #[cfg(not(desktop))]
+    let autostart_enabled = false;
+
+    #[cfg(desktop)]
     let min_to_tray = MINIMIZE_TO_TRAY.load(Ordering::Relaxed);
+    #[cfg(not(desktop))]
+    let min_to_tray = false;
+
     SynapseSettings {
         autostart: autostart_enabled,
         minimize_to_tray: min_to_tray,
@@ -632,103 +646,119 @@ fn get_synapse_settings(app: tauri::AppHandle) -> SynapseSettings {
 }
 
 #[tauri::command]
-fn set_autostart_setting(app: tauri::AppHandle, enable: bool) -> Result<bool, String> {
-    if enable {
-        app.autolaunch().enable().map_err(|e| e.to_string())?;
-    } else {
-        app.autolaunch().disable().map_err(|e| e.to_string())?;
+fn set_autostart_setting(#[allow(unused)] app: tauri::AppHandle, enable: bool) -> Result<bool, String> {
+    #[cfg(desktop)]
+    {
+        if enable {
+            app.autolaunch().enable().map_err(|e| e.to_string())?;
+        } else {
+            app.autolaunch().disable().map_err(|e| e.to_string())?;
+        }
     }
     Ok(enable)
 }
 
 #[tauri::command]
 fn set_minimize_to_tray_setting(enable: bool) -> bool {
+    #[cfg(desktop)]
     MINIMIZE_TO_TRAY.store(enable, Ordering::Relaxed);
     enable
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            Some(vec!["--autostart"]),
-        ))
-        .setup(|app| {
-            // System Tray Menu Setup
-            let show_item = MenuItemBuilder::with_id("show", "Abrir Aurora Synapse").build(app)?;
-            let settings_item = MenuItemBuilder::with_id("settings", "Configuración").build(app)?;
-            let separator = PredefinedMenuItem::separator(app)?;
-            let quit_item = MenuItemBuilder::with_id("quit", "Salir de Aurora Synapse").build(app)?;
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init());
 
-            let tray_menu = MenuBuilder::new(app)
-                .items(&[&show_item, &settings_item, &separator, &quit_item])
-                .build()?;
+    #[cfg(desktop)]
+    {
+        builder = builder
+            .plugin(tauri_plugin_window_state::Builder::default().build())
+            .plugin(tauri_plugin_autostart::init(
+                tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+                Some(vec!["--autostart"]),
+            ));
+    }
 
-            let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("Aurora Synapse · Orquestador Universal")
-                .menu(&tray_menu)
-                .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| {
-                    match event.id().as_ref() {
-                        "show" => {
-                            if let Some(w) = app.get_webview_window("main") {
-                                let _ = w.unminimize();
-                                let _ = w.show();
-                                let _ = w.set_focus();
+    builder
+        .setup(|_app| {
+            #[cfg(desktop)]
+            {
+                let app = _app;
+                // System Tray Menu Setup
+                let show_item = MenuItemBuilder::with_id("show", "Abrir Aurora Synapse").build(app)?;
+                let settings_item = MenuItemBuilder::with_id("settings", "Configuración").build(app)?;
+                let separator = PredefinedMenuItem::separator(app)?;
+                let quit_item = MenuItemBuilder::with_id("quit", "Salir de Aurora Synapse").build(app)?;
+
+                let tray_menu = MenuBuilder::new(app)
+                    .items(&[&show_item, &settings_item, &separator, &quit_item])
+                    .build()?;
+
+                let _tray = TrayIconBuilder::new()
+                    .icon(app.default_window_icon().unwrap().clone())
+                    .tooltip("Aurora Synapse · Orquestador Universal")
+                    .menu(&tray_menu)
+                    .show_menu_on_left_click(false)
+                    .on_menu_event(|app, event| {
+                        match event.id().as_ref() {
+                            "show" => {
+                                if let Some(w) = app.get_webview_window("main") {
+                                    let _ = w.unminimize();
+                                    let _ = w.show();
+                                    let _ = w.set_focus();
+                                }
+                            }
+                            "settings" => {
+                                if let Some(w) = app.get_webview_window("main") {
+                                    let _ = w.unminimize();
+                                    let _ = w.show();
+                                    let _ = w.set_focus();
+                                    let _ = w.emit("synapse://open-settings", ());
+                                }
+                            }
+                            "quit" => {
+                                app.exit(0);
+                            }
+                            _ => {}
+                        }
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        match event {
+                            TrayIconEvent::Click {
+                                button: MouseButton::Left,
+                                button_state: MouseButtonState::Up,
+                                ..
+                            }
+                            | TrayIconEvent::DoubleClick {
+                                button: MouseButton::Left,
+                                ..
+                            } => {
+                                let app = tray.app_handle();
+                                if let Some(w) = app.get_webview_window("main") {
+                                    let _ = w.unminimize();
+                                    let _ = w.show();
+                                    let _ = w.set_focus();
+                                }
+                            }
+                            _ => {}
+                        }
+                    })
+                    .build(app)?;
+
+                // Prevent window close if minimize to tray is enabled
+                if let Some(main_window) = app.get_webview_window("main") {
+                    let win = main_window.clone();
+                    main_window.on_window_event(move |event| {
+                        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                            if MINIMIZE_TO_TRAY.load(Ordering::Relaxed) {
+                                api.prevent_close();
+                                let _ = win.hide();
                             }
                         }
-                        "settings" => {
-                            if let Some(w) = app.get_webview_window("main") {
-                                let _ = w.unminimize();
-                                let _ = w.show();
-                                let _ = w.set_focus();
-                                let _ = w.emit("synapse://open-settings", ());
-                            }
-                        }
-                        "quit" => {
-                            app.exit(0);
-                        }
-                        _ => {}
-                    }
-                })
-                .on_tray_icon_event(|tray, event| {
-                    match event {
-                        TrayIconEvent::Click {
-                            button: MouseButton::Left,
-                            button_state: MouseButtonState::Up,
-                            ..
-                        }
-                        | TrayIconEvent::DoubleClick {
-                            button: MouseButton::Left,
-                            ..
-                        } => {
-                            let app = tray.app_handle();
-                            if let Some(w) = app.get_webview_window("main") {
-                                let _ = w.unminimize();
-                                let _ = w.show();
-                                let _ = w.set_focus();
-                            }
-                        }
-                        _ => {}
-                    }
-                })
-                .build(app)?;
-
-            // Prevent window close if minimize to tray is enabled
-            if let Some(main_window) = app.get_webview_window("main") {
-                let win = main_window.clone();
-                main_window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        if MINIMIZE_TO_TRAY.load(Ordering::Relaxed) {
-                            api.prevent_close();
-                            let _ = win.hide();
-                        }
-                    }
-                });
+                    });
+                }
             }
 
             Ok(())

@@ -13,7 +13,7 @@
 
 | Modo oscuro | Modo claro |
 | :---: | :---: |
-| ![Pantalla principal en modo oscuro](docs/screenshots/home.png) | ![Pantalla principal en modo claro](docs/screenshots/main_dashboard_light.png) |
+| ![Pantalla principal en modo oscuro](docs/screenshots/home_dark.png) | ![Pantalla principal en modo claro](docs/screenshots/home_light.png) |
 
 ---
 
