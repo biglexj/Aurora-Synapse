@@ -17,6 +17,7 @@ interface AppTarget {
   supported_domains: string[];
   is_web_app: boolean;
   status: "NUEVA" | "ACTUALIZADA" | "BETA" | "EXPERIMENTAL" | "PROXIMAMENTE" | "DISPONIBLE" | string;
+  platforms: string[];
 }
 
 interface DeviceNode {
@@ -25,6 +26,7 @@ interface DeviceNode {
   device_type: string;
   ip: string;
   is_local: boolean;
+  os: string;
 }
 
 interface ClassificationResult {
@@ -43,6 +45,7 @@ export default function App() {
   const [apps, setApps] = useState<AppTarget[]>([]);
   const [devices, setDevices] = useState<DeviceNode[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>("local_pc");
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [inputText, setInputText] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("Aplicaciones");
@@ -102,6 +105,14 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [inputText]);
 
+  const handleDeviceChange = (devId: string) => {
+    setSelectedDevice(devId);
+    const dev = devices.find((d) => d.id === devId);
+    if (dev?.os) {
+      setSelectedPlatform(dev.os);
+    }
+  };
+
   const handleDispatch = async (targetAppId?: string) => {
     const appId = targetAppId || classification?.recommended_app_id;
     if (!appId) return;
@@ -118,35 +129,30 @@ export default function App() {
     try {
       const res = await invoke<string>("dispatch_content", {
         appId,
-        content: inputText.trim(),
+        content: inputText,
         targetDeviceId: selectedDevice,
       });
       setStatusMessage({ text: res, type: "success" });
-      if (inputText.trim()) {
-        setInputText("");
-        setClassification(null);
-      }
-    } catch (err: any) {
+      setInputText("");
+    } catch (err) {
       setStatusMessage({ text: String(err), type: "error" });
     } finally {
       setIsDispatching(false);
-      setTimeout(() => {
-        setStatusMessage(null);
-      }, 5000);
+      setTimeout(() => setStatusMessage(null), 4000);
     }
   };
 
-  const toggleAutostart = async () => {
+  const handleToggleAutostart = async () => {
     try {
       const nextState = !settings.autostart;
       await invoke("set_autostart_setting", { enable: nextState });
       setSettings((prev) => ({ ...prev, autostart: nextState }));
     } catch (err) {
-      console.error("Error al cambiar auto-inicio:", err);
+      console.error("Error al cambiar autostart:", err);
     }
   };
 
-  const toggleMinimizeToTray = async () => {
+  const handleToggleMinimizeToTray = async () => {
     try {
       const nextState = !settings.minimize_to_tray;
       await invoke("set_minimize_to_tray_setting", { enable: nextState });
@@ -158,6 +164,15 @@ export default function App() {
 
   const categories = useMemo(() => {
     return ["Aplicaciones", "Web", "Multimedia", "IA", "Desarrollo", "Utilidades", "Experimentos"];
+  }, []);
+
+  const platformsList = useMemo(() => {
+    return [
+      { id: "all", label: "Todos los S.O.", icon: "🌐" },
+      { id: "windows", label: "Windows", icon: "🪟" },
+      { id: "android", label: "Android", icon: "📱" },
+      { id: "linux", label: "Linux", icon: "🐧" },
+    ];
   }, []);
 
   const filteredApps = useMemo(() => {
@@ -176,9 +191,13 @@ export default function App() {
         matchesCat = app.category === selectedCategory;
       }
 
-      return matchesSearch && matchesCat;
+      const matchesPlatform =
+        selectedPlatform === "all" ||
+        (app.platforms && app.platforms.includes(selectedPlatform));
+
+      return matchesSearch && matchesCat && matchesPlatform;
     });
-  }, [apps, searchQuery, selectedCategory]);
+  }, [apps, searchQuery, selectedCategory, selectedPlatform]);
 
   const recommendedApp = apps.find((a) => a.id === classification?.recommended_app_id);
 
@@ -223,7 +242,7 @@ export default function App() {
                 <button
                   key={dev.id}
                   className={`device-pill ${selectedDevice === dev.id ? "active" : ""}`}
-                  onClick={() => setSelectedDevice(dev.id)}
+                  onClick={() => handleDeviceChange(dev.id)}
                 >
                   <span>{dev.device_type === "mobile" ? "📱" : "💻"}</span>
                   <span>{dev.name}</span>
@@ -296,102 +315,137 @@ export default function App() {
 
       {/* Catalog Search & Category Filters */}
       <section className="catalog-toolbar">
-        <div className="category-pills">
-          {categories.map((cat) => (
+        <div className="toolbar-top-row">
+          <div className="category-pills">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                className={`cat-pill ${selectedCategory === cat ? "active" : ""}`}
+                onClick={() => setSelectedCategory(cat)}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="search-box">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="🔍 Buscar aplicación..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Platform Sub-Filters */}
+        <div className="platform-pills">
+          <span className="platform-filter-label">S.O. Compatible:</span>
+          {platformsList.map((p) => (
             <button
-              key={cat}
-              className={`cat-pill ${selectedCategory === cat ? "active" : ""}`}
-              onClick={() => setSelectedCategory(cat)}
+              key={p.id}
+              className={`platform-pill ${selectedPlatform === p.id ? "active" : ""}`}
+              onClick={() => setSelectedPlatform(p.id)}
             >
-              {cat}
+              <span>{p.icon}</span>
+              <span>{p.label}</span>
             </button>
           ))}
         </div>
-
-        <div className="search-box">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="🔍 Buscar aplicación..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
       </section>
 
-      {/* Grid de Aplicaciones Satélite (2 cols en móvil, 4 cols en PC) */}
+      {/* Grid de Aplicaciones Satélite (2 cols en móvil, 4 a 6 cols en PC) */}
       <section className="apps-section">
-        <div className="apps-grid">
-          {filteredApps.map((app) => {
-            const isRec = classification?.recommended_app_id === app.id;
-            const isUpcoming = app.status === "PROXIMAMENTE";
-            const hasValidImage = app.icon_path && !failedIcons[app.id];
+        {filteredApps.length === 0 ? (
+          <div className="empty-apps-state">
+            <span className="empty-icon">🔍</span>
+            <h3>No se encontraron aplicaciones</h3>
+            <p>Prueba seleccionando "Todos los S.O." o cambiando la categoría activa.</p>
+            <button className="empty-reset-btn" onClick={() => { setSelectedPlatform("all"); setSelectedCategory("Aplicaciones"); setSearchQuery(""); }}>
+              Restablecer Filtros
+            </button>
+          </div>
+        ) : (
+          <div className="apps-grid">
+            {filteredApps.map((app) => {
+              const isRec = classification?.recommended_app_id === app.id;
+              const isUpcoming = app.status === "PROXIMAMENTE";
+              const hasValidImage = app.icon_path && !failedIcons[app.id];
 
-            return (
-              <div
-                key={app.id}
-                className={`app-card ${isRec ? "card-highlighted" : ""} ${isUpcoming ? "card-upcoming" : ""}`}
-                style={{ "--card-accent": app.accent_color } as React.CSSProperties}
-                onClick={() => {
-                  if (!isUpcoming) handleDispatch(app.id);
-                }}
-              >
-                <div className="app-card-top">
-                  <div
-                    className="app-icon-wrap"
-                    style={{
-                      borderColor: !hasValidImage ? app.accent_color : undefined,
-                      background: !hasValidImage
-                        ? `linear-gradient(135deg, ${app.accent_color}22, ${app.accent_color}44)`
-                        : undefined,
-                    }}
-                  >
-                    {hasValidImage ? (
-                      <img
-                        src={app.icon_path}
-                        alt={app.name}
-                        className="app-icon-img"
-                        onError={() => {
-                          setFailedIcons((prev) => ({ ...prev, [app.id]: true }));
-                        }}
-                      />
-                    ) : (
-                      <span className="app-icon-emoji">{app.icon_emoji || "⚡"}</span>
-                    )}
+              return (
+                <div
+                  key={app.id}
+                  className={`app-card ${isRec ? "card-highlighted" : ""} ${isUpcoming ? "card-upcoming" : ""}`}
+                  style={{ "--card-accent": app.accent_color } as React.CSSProperties}
+                  onClick={() => {
+                    if (!isUpcoming) handleDispatch(app.id);
+                  }}
+                >
+                  <div className="app-card-top">
+                    <div
+                      className="app-icon-wrap"
+                      style={{
+                        borderColor: !hasValidImage ? app.accent_color : undefined,
+                        background: !hasValidImage
+                          ? `linear-gradient(135deg, ${app.accent_color}22, ${app.accent_color}44)`
+                          : undefined,
+                      }}
+                    >
+                      {hasValidImage ? (
+                        <img
+                          src={app.icon_path}
+                          alt={app.name}
+                          className="app-icon-img"
+                          onError={() => {
+                            setFailedIcons((prev) => ({ ...prev, [app.id]: true }));
+                          }}
+                        />
+                      ) : (
+                        <span className="app-icon-emoji">{app.icon_emoji || "⚡"}</span>
+                      )}
+                    </div>
+                    
+                    <div className="badges-stack">
+                      <span className={`status-badge ${getStatusBadgeClass(app.status)}`}>
+                        {app.status}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`status-badge ${getStatusBadgeClass(app.status)}`}>
-                    {app.status}
-                  </span>
-                </div>
 
-                <h3 className="app-name">{app.name}</h3>
-                <p className="app-desc">{app.description}</p>
+                  <h3 className="app-name">{app.name}</h3>
+                  <p className="app-desc">{app.description}</p>
 
-                <div className="app-footer">
-                  <span className="app-status-info">
-                    {app.is_web_app ? "🌐 Web App" : `Puerto ${app.port}`}
-                  </span>
-                  <button
-                    className="card-dispatch-btn"
-                    disabled={isUpcoming}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDispatch(app.id);
-                    }}
-                  >
-                    {isUpcoming
-                      ? "Próximamente"
-                      : inputText.trim()
-                      ? "Enviar"
-                      : app.is_web_app
-                      ? "Visitar"
-                      : "Lanzar"}
-                  </button>
+                  <div className="app-footer">
+                    <div className="app-platforms-tag">
+                      {app.platforms?.includes("windows") && <span title="Windows">🪟</span>}
+                      {app.platforms?.includes("android") && <span title="Android">📱</span>}
+                      {app.platforms?.includes("linux") && <span title="Linux">🐧</span>}
+                      {app.platforms?.includes("web") && <span title="Web">🌐</span>}
+                    </div>
+
+                    <button
+                      className="card-dispatch-btn"
+                      disabled={isUpcoming}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDispatch(app.id);
+                      }}
+                    >
+                      {isUpcoming
+                        ? "Próximamente"
+                        : inputText.trim()
+                        ? "Enviar"
+                        : app.is_web_app
+                        ? "Visitar"
+                        : "Lanzar"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Settings Modal */}
@@ -409,91 +463,61 @@ export default function App() {
             </div>
 
             <div className="modal-body">
-              {/* Preferences Section */}
-              <div className="settings-group">
-                <h3 className="settings-group-title">COMPORTAMIENTO DEL SISTEMA</h3>
-
-                <label className="setting-row">
-                  <div className="setting-info">
-                    <span className="setting-label">Iniciar con Windows (Auto-Run)</span>
-                    <span className="setting-desc">
-                      Inicia Aurora Synapse en segundo plano al encender el equipo.
-                    </span>
-                  </div>
+              <div className="setting-row">
+                <div className="setting-info">
+                  <span className="setting-title">Iniciar con Windows (Auto-Run)</span>
+                  <span className="setting-desc">Ejecuta Aurora Synapse automáticamente al iniciar el sistema operativo.</span>
+                </div>
+                <label className="toggle-switch">
                   <input
                     type="checkbox"
-                    className="setting-checkbox"
                     checked={settings.autostart}
-                    onChange={toggleAutostart}
+                    onChange={handleToggleAutostart}
                   />
-                </label>
-
-                <label className="setting-row">
-                  <div className="setting-info">
-                    <span className="setting-label">Minimizar a la Bandeja al Cerrar (X)</span>
-                    <span className="setting-desc">
-                      Mantiene la aplicación residente en el System Tray para enrutamiento instantáneo.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    className="setting-checkbox"
-                    checked={settings.minimize_to_tray}
-                    onChange={toggleMinimizeToTray}
-                  />
-                </label>
-
-                <label className="setting-row">
-                  <div className="setting-info">
-                    <span className="setting-label">Descubrimiento LAN (Puerto 49295)</span>
-                    <span className="setting-desc">
-                      Escucha conexiones de aplicaciones satélite y dispositivos móviles en la red local.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    className="setting-checkbox"
-                    checked={settings.lan_discovery}
-                    readOnly
-                  />
+                  <span className="toggle-slider"></span>
                 </label>
               </div>
 
-              {/* About Ecosystem Section */}
-              <div className="settings-group about-section">
-                <h3 className="settings-group-title">ACERCA DEL ECOSISTEMA</h3>
-                <div className="about-card">
-                  <div className="about-logo">⚡</div>
-                  <div className="about-details">
-                    <h4 className="about-app-name">Aurora Synapse v0.1.0</h4>
-                    <p className="about-author">Desarrollado por <strong>Biglex J</strong> · 2026</p>
-                    <p className="about-license">Licencia GNU GPL v2.0 (GPL-2.0)</p>
-                  </div>
+              <div className="setting-row">
+                <div className="setting-info">
+                  <span className="setting-title">Minimizar a la Bandeja al Cerrar (X)</span>
+                  <span className="setting-desc">Mantiene el proceso en segundo plano en el System Tray para responder al enrutamiento.</span>
                 </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.minimize_to_tray}
+                    onChange={handleToggleMinimizeToTray}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
 
-                <div className="about-buttons">
-                  <button
-                    className="about-btn primary"
-                    onClick={() => invoke("dispatch_content", {
-                      appId: "about-donations",
-                      content: "",
-                      targetDeviceId: "local_pc",
-                    }).catch(() => {})}
-                  >
-                    💖 Donaciones Oficiales (Yape / Plin / Web)
-                  </button>
-                  <button
-                    className="about-btn secondary"
-                    onClick={() => window.open("https://buymeacoffee.com/biglexj", "_blank")}
-                  >
+              <div className="setting-row">
+                <div className="setting-info">
+                  <span className="setting-title">Descubrimiento LAN (Puerto 49295)</span>
+                  <span className="setting-desc">Permite recibir enlaces y medios enviados desde teléfonos Android en la red local.</span>
+                </div>
+                <span className="active-badge">Activo</span>
+              </div>
+
+              <hr className="modal-divider" />
+
+              <div className="about-section">
+                <h3>Acerca de Aurora Synapse</h3>
+                <p className="about-text">
+                  Orquestador Universal del Ecosistema <strong>Aurora</strong>. Creado por <strong>Biglex J</strong> bajo licencia GNU GPL v2.0 (2026).
+                </p>
+                <div className="about-links">
+                  <a href="https://www.biglexj.com/donaciones" target="_blank" rel="noreferrer" className="about-link donation">
+                    💖 Apoyar Proyecto
+                  </a>
+                  <a href="https://buymeacoffee.com/biglexj" target="_blank" rel="noreferrer" className="about-link coffee">
                     ☕ Buy Me a Coffee
-                  </button>
-                  <button
-                    className="about-btn secondary"
-                    onClick={() => window.open("https://github.com/biglexj", "_blank")}
-                  >
-                    ⭐ GitHub Oficial
-                  </button>
+                  </a>
+                  <a href="https://github.com/biglexj" target="_blank" rel="noreferrer" className="about-link github">
+                    🐙 GitHub Oficial
+                  </a>
                 </div>
               </div>
             </div>

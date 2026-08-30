@@ -29,6 +29,7 @@ pub struct AppTarget {
     pub supported_domains: Vec<String>,
     pub is_web_app: bool,
     pub status: String,
+    pub platforms: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -38,6 +39,7 @@ pub struct DeviceNode {
     pub device_type: String,
     pub ip: String,
     pub is_local: bool,
+    pub os: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -82,6 +84,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             ],
             is_web_app: false,
             status: "NUEVA".into(),
+            platforms: vec!["windows".into(), "linux".into(), "android".into()],
         },
         AppTarget {
             id: "luna".into(),
@@ -107,6 +110,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             ],
             is_web_app: false,
             status: "ACTUALIZADA".into(),
+            platforms: vec!["windows".into(), "linux".into(), "android".into()],
         },
         AppTarget {
             id: "prisma".into(),
@@ -130,6 +134,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             ],
             is_web_app: false,
             status: "NUEVA".into(),
+            platforms: vec!["windows".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "elytesia".into(),
@@ -150,6 +155,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             ],
             is_web_app: false,
             status: "ACTUALIZADA".into(),
+            platforms: vec!["windows".into()],
         },
         AppTarget {
             id: "wintts".into(),
@@ -169,6 +175,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             ],
             is_web_app: false,
             status: "ACTUALIZADA".into(),
+            platforms: vec!["windows".into()],
         },
         AppTarget {
             id: "lyraflow".into(),
@@ -186,6 +193,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             ],
             is_web_app: false,
             status: "ACTUALIZADA".into(),
+            platforms: vec!["windows".into()],
         },
         AppTarget {
             id: "davinciflow".into(),
@@ -203,6 +211,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             ],
             is_web_app: false,
             status: "EXPERIMENTAL".into(),
+            platforms: vec!["windows".into(), "macos".into()],
         },
         AppTarget {
             id: "mouzi".into(),
@@ -218,6 +227,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: false,
             status: "EXPERIMENTAL".into(),
+            platforms: vec!["windows".into()],
         },
         AppTarget {
             id: "lienzo".into(),
@@ -233,6 +243,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: false,
             status: "ACTUALIZADA".into(),
+            platforms: vec!["android".into()],
         },
         AppTarget {
             id: "codex".into(),
@@ -248,6 +259,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: false,
             status: "EXPERIMENTAL".into(),
+            platforms: vec!["windows".into(), "linux".into()],
         },
         AppTarget {
             id: "pixistore".into(),
@@ -263,6 +275,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: false,
             status: "PROXIMAMENTE".into(),
+            platforms: vec!["windows".into(), "android".into(), "web".into()],
         },
 
         // ─── HERRAMIENTAS & APPS WEB (BIGLEXJ.COM) ───
@@ -280,6 +293,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "ACTUALIZADA".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "twitter-ui".into(),
@@ -295,6 +309,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "ACTUALIZADA".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "colors-tailwind".into(),
@@ -310,6 +325,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "ACTUALIZADA".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "aduana-calc".into(),
@@ -325,6 +341,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "DISPONIBLE".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "panel-creador".into(),
@@ -340,6 +357,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "ACTUALIZADA".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "chat-global".into(),
@@ -355,6 +373,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "DISPONIBLE".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "wallpapers".into(),
@@ -370,6 +389,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "ACTUALIZADA".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "feedback".into(),
@@ -385,6 +405,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "DISPONIBLE".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "musica".into(),
@@ -400,6 +421,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "DISPONIBLE".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "instrumentales".into(),
@@ -415,6 +437,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "DISPONIBLE".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "karaoke".into(),
@@ -430,6 +453,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "DISPONIBLE".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "noticias".into(),
@@ -445,6 +469,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "DISPONIBLE".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
         AppTarget {
             id: "live".into(),
@@ -460,6 +485,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             supported_domains: vec![],
             is_web_app: true,
             status: "DISPONIBLE".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
         },
     ]
 }
@@ -565,6 +591,7 @@ fn get_paired_devices() -> Vec<DeviceNode> {
             device_type: "desktop".into(),
             ip: "127.0.0.1".into(),
             is_local: true,
+            os: "windows".into(),
         },
         DeviceNode {
             id: "android_phone".into(),
@@ -572,6 +599,7 @@ fn get_paired_devices() -> Vec<DeviceNode> {
             device_type: "mobile".into(),
             ip: "192.168.1.105".into(),
             is_local: false,
+            os: "android".into(),
         },
     ]
 }

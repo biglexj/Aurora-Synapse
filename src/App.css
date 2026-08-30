@@ -354,11 +354,17 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.toolbar-top-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   justify-content: space-between;
 }
 
 @media (min-width: 768px) {
-  .catalog-toolbar {
+  .toolbar-top-row {
     flex-direction: row;
     align-items: center;
   }
@@ -394,6 +400,49 @@ body {
   font-weight: 600;
 }
 
+/* Platform Sub-Filters */
+.platform-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.platform-filter-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.platform-pill {
+  background: var(--surface-color);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+}
+
+.platform-pill:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.platform-pill.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: #60a5fa;
+}
+
 .search-box {
   min-width: 240px;
 }
@@ -412,6 +461,61 @@ body {
 
 .search-input:focus {
   border-color: var(--primary-color);
+}
+
+/* Empty State */
+.empty-apps-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  background: var(--surface-color);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-top: 12px;
+}
+
+.empty-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+}
+
+.empty-apps-state h3 {
+  font-size: 16px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.empty-apps-state p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.empty-reset-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.empty-reset-btn:hover {
+  opacity: 0.9;
+}
+
+.app-platforms-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  opacity: 0.85;
 }
 
 /* Grid: 2 cols on mobile (< 640px), 3-6 cols depending on window width */
