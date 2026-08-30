@@ -124,8 +124,8 @@ body {
 /* Right Header Actions */
 .header-right-actions {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 /* Device Switcher */
@@ -150,20 +150,23 @@ body {
   padding: 4px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
+  height: 38px;
+  align-items: center;
 }
 
 .device-pill {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 5px 12px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
   background: transparent;
   color: var(--text-secondary);
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  height: 28px;
 }
 
 .device-pill:hover {
@@ -182,16 +185,17 @@ body {
   background: var(--surface-color);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  font-size: 18px;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
+  font-size: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-top: 14px;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .settings-trigger-btn:hover {
