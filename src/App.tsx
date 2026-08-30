@@ -55,9 +55,10 @@ export default function App() {
   const [failedIcons, setFailedIcons] = useState<Record<string, boolean>>({});
 
   // Mobile & Theme State
+  type ThemeMode = "system" | "dark" | "light";
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    return (localStorage.getItem("synapse_theme") as "dark" | "light") || "dark";
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    return (localStorage.getItem("synapse_theme") as ThemeMode) || "system";
   });
   const [androidBgResident, setAndroidBgResident] = useState<boolean>(true);
   const [androidAutoBoot, setAndroidAutoBoot] = useState<boolean>(false);
@@ -71,8 +72,26 @@ export default function App() {
   });
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("synapse_theme", theme);
+    const applyTheme = () => {
+      let effectiveTheme: "dark" | "light" = "dark";
+      if (theme === "system") {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        effectiveTheme = prefersDark ? "dark" : "light";
+      } else {
+        effectiveTheme = theme;
+      }
+      document.documentElement.setAttribute("data-theme", effectiveTheme);
+      localStorage.setItem("synapse_theme", theme);
+    };
+
+    applyTheme();
+
+    if (theme === "system") {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const handler = () => applyTheme();
+      mediaQuery.addEventListener("change", handler);
+      return () => mediaQuery.removeEventListener("change", handler);
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -499,20 +518,29 @@ export default function App() {
               <div className="setting-row">
                 <div className="setting-info">
                   <span className="setting-title">Tema de la Interfaz</span>
-                  <span className="setting-desc">Personaliza la apariencia visual en modo oscuro medianoche o claro.</span>
+                  <span className="setting-desc">Apariencia en modo automático, oscuro o claro.</span>
                 </div>
                 <div className="theme-toggle-chips">
                   <button
-                    className={`theme-chip ${theme === "dark" ? "active" : ""}`}
-                    onClick={() => setTheme("dark")}
+                    className={`theme-chip-icon ${theme === "system" ? "active" : ""}`}
+                    title="Automático (Sigue el tema del sistema / dispositivo)"
+                    onClick={() => setTheme("system")}
                   >
-                    🌙 Oscuro
+                    💻
                   </button>
                   <button
-                    className={`theme-chip ${theme === "light" ? "active" : ""}`}
+                    className={`theme-chip-icon ${theme === "dark" ? "active" : ""}`}
+                    title="Modo Oscuro"
+                    onClick={() => setTheme("dark")}
+                  >
+                    🌙
+                  </button>
+                  <button
+                    className={`theme-chip-icon ${theme === "light" ? "active" : ""}`}
+                    title="Modo Claro"
                     onClick={() => setTheme("light")}
                   >
-                    ☀️ Claro
+                    ☀️
                   </button>
                 </div>
               </div>

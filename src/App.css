@@ -932,6 +932,48 @@ body {
   cursor: pointer;
 }
 
+/* Theme Toggle in Settings Modal */
+.theme-toggle-chips {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-color);
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.theme-chip-icon {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 7px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.theme-chip-icon:hover {
+  background: var(--surface-container);
+  color: var(--text-primary);
+}
+
+.theme-chip-icon.active {
+  background: var(--surface-elevated);
+  border-color: var(--border-active);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transform: scale(1.05);
+}
+
 /* About Card & Buttons */
 /* Modal Divider */
 .modal-divider {
