@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
@@ -7,11 +7,13 @@ interface AppTarget {
   name: string;
   category: string;
   description: string;
-  icon: string;
+  icon_path: string;
   accent_color: string;
   uri_scheme: string;
+  web_url?: string;
   port: number;
   supported_domains: string[];
+  is_web_app: boolean;
 }
 
 interface DeviceNode {
@@ -33,6 +35,8 @@ export default function App() {
   const [devices, setDevices] = useState<DeviceNode[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>("local_pc");
   const [inputText, setInputText] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   const [classification, setClassification] = useState<ClassificationResult | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
   const [isDispatching, setIsDispatching] = useState<boolean>(false);
@@ -64,17 +68,17 @@ export default function App() {
       } catch (err) {
         console.error("Error clasificando intención:", err);
       }
-    }, 200);
+    }, 150);
 
     return () => clearTimeout(timer);
   }, [inputText]);
 
   const handleDispatch = async (targetAppId?: string) => {
     const appId = targetAppId || classification?.recommended_app_id;
-    if (!appId || !inputText.trim()) return;
+    if (!appId) return;
 
     setIsDispatching(true);
-    setStatusMessage({ text: "Despachando contenido a través de Aurora Synapse...", type: "info" });
+    setStatusMessage({ text: "Despachando a través de Aurora Synapse...", type: "info" });
 
     try {
       const res = await invoke<string>("dispatch_content", {
@@ -83,8 +87,10 @@ export default function App() {
         targetDeviceId: selectedDevice,
       });
       setStatusMessage({ text: res, type: "success" });
-      setInputText("");
-      setClassification(null);
+      if (inputText.trim()) {
+        setInputText("");
+        setClassification(null);
+      }
     } catch (err: any) {
       setStatusMessage({ text: String(err), type: "error" });
     } finally {
@@ -95,6 +101,23 @@ export default function App() {
     }
   };
 
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    apps.forEach((a) => cats.add(a.category));
+    return ["Todos", ...Array.from(cats)];
+  }, [apps]);
+
+  const filteredApps = useMemo(() => {
+    return apps.filter((app) => {
+      const matchesSearch =
+        app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.category.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCat = selectedCategory === "Todos" || app.category === selectedCategory;
+      return matchesSearch && matchesCat;
+    });
+  }, [apps, searchQuery, selectedCategory]);
+
   const recommendedApp = apps.find((a) => a.id === classification?.recommended_app_id);
 
   return (
@@ -102,7 +125,7 @@ export default function App() {
       {/* Header */}
       <header className="synapse-header">
         <div className="header-brand">
-          <div className="brand-icon">⚡</div>
+          <div className="brand-logo">⚡</div>
           <div>
             <h1 className="brand-title">Aurora Synapse</h1>
             <p className="brand-subtitle">Orquestador Universal & Router Inteligente de Intención</p>
@@ -154,7 +177,7 @@ export default function App() {
           <div className="recommendation-banner" style={{ borderColor: recommendedApp.accent_color }}>
             <div className="rec-info">
               <span className="rec-badge" style={{ backgroundColor: recommendedApp.accent_color }}>
-                {recommendedApp.icon} {recommendedApp.name}
+                {recommendedApp.name}
               </span>
               <span className="rec-reason">{classification.reason}</span>
             </div>
@@ -179,29 +202,55 @@ export default function App() {
         )}
       </section>
 
-      {/* Grid de Aplicaciones Satélite (2 cols en móvil, 4 cols en PC) */}
-      <section className="apps-section">
-        <div className="section-header">
-          <h2 className="section-title">Ecosistema de Aplicaciones Conectadas</h2>
-          <span className="section-caption">{apps.length} aplicaciones activas en el protocolo</span>
+      {/* Catalog Search & Category Filters */}
+      <section className="catalog-toolbar">
+        <div className="category-pills">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              className={`cat-pill ${selectedCategory === cat ? "active" : ""}`}
+              onClick={() => setSelectedCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
 
+        <div className="search-box">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Buscar aplicación..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </section>
+
+      {/* Grid de Aplicaciones Satélite (2 cols en móvil, 4 cols en PC) */}
+      <section className="apps-section">
         <div className="apps-grid">
-          {apps.map((app) => {
+          {filteredApps.map((app) => {
             const isRec = classification?.recommended_app_id === app.id;
             return (
               <div
                 key={app.id}
                 className={`app-card ${isRec ? "card-highlighted" : ""}`}
                 style={{ "--card-accent": app.accent_color } as React.CSSProperties}
-                onClick={() => {
-                  if (inputText.trim()) {
-                    handleDispatch(app.id);
-                  }
-                }}
+                onClick={() => handleDispatch(app.id)}
               >
                 <div className="app-card-top">
-                  <span className="app-icon">{app.icon}</span>
+                  <div className="app-icon-wrap">
+                    <img
+                      src={app.icon_path}
+                      alt={app.name}
+                      className="app-icon-img"
+                      onError={(e) => {
+                        // Fallback to initial letter icon
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
+                    />
+                  </div>
                   <span className="app-category">{app.category}</span>
                 </div>
 
@@ -209,16 +258,17 @@ export default function App() {
                 <p className="app-desc">{app.description}</p>
 
                 <div className="app-footer">
-                  <span className="app-port">Puerto: {app.port}</span>
+                  <span className="app-status">
+                    {app.is_web_app ? "🌐 Web App" : `Puerto ${app.port}`}
+                  </span>
                   <button
                     className="card-dispatch-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDispatch(app.id);
                     }}
-                    disabled={!inputText.trim()}
                   >
-                    Enviar
+                    {inputText.trim() ? "Enviar" : app.is_web_app ? "Visitar" : "Abrir"}
                   </button>
                 </div>
               </div>
