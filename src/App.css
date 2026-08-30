@@ -56,9 +56,10 @@ body {
 }
 
 .synapse-container {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 24px 24px 56px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 24px 32px 56px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -409,16 +410,34 @@ body {
   border-color: var(--primary-color);
 }
 
-/* Grid: 2 cols on mobile (< 640px), 4 cols on PC (>= 640px) */
+/* Grid: 2 cols on mobile (< 640px), 3-6 cols depending on window width */
 .apps-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 680px) {
+  .apps-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
   .apps-grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .apps-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (min-width: 1560px) {
+  .apps-grid {
+    grid-template-columns: repeat(6, 1fr);
   }
 }
 
