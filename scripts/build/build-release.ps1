@@ -48,12 +48,13 @@ $bundleDir = ".\src-tauri\target\release\bundle"
 $releaseOutputDir = ".\release\v$Version"
 New-Item -ItemType Directory -Force -Path $releaseOutputDir | Out-Null
 
-Write-Host "➔ 3/4 Copiando binarios ejecutables (.exe) a $releaseOutputDir..." -ForegroundColor Green
-if (Test-Path ".\src-tauri\target\release\aurora-synapse.exe") {
-    Copy-Item ".\src-tauri\target\release\aurora-synapse.exe" -Destination "$releaseOutputDir\Aurora-Synapse-v$Version-Portable.exe" -Force
-}
+Write-Host "➔ 3/4 Copiando instalador oficial de escritorio (.exe) a $releaseOutputDir..." -ForegroundColor Green
 if (Test-Path "$bundleDir\nsis") {
     Copy-Item "$bundleDir\nsis\*.exe" -Destination $releaseOutputDir -Force
+}
+$androidApk = ".\src-tauri\gen\android\app\build\outputs\apk\release\app-universal-release-unsigned.apk"
+if (Test-Path $androidApk) {
+    Copy-Item $androidApk -Destination "$releaseOutputDir\Aurora-Synapse-v$Version.apk" -Force
 }
 
 # 4. Generate SHA256 Hashes
