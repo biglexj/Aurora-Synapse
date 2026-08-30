@@ -23,6 +23,31 @@
   font-family: var(--font-family);
 }
 
+/* Custom Sleek Scrollbar (Elimina el scrollbar blanco nativo de Windows) */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.4);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.2) var(--bg-color);
+}
+
 body {
   background-color: var(--bg-color);
   color: var(--text-primary);
