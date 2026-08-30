@@ -1,4 +1,5 @@
-:root {
+:root,
+[data-theme="dark"] {
   --bg-color: #080c14;
   --surface-color: #0f1523;
   --surface-container: #141c2e;
@@ -8,12 +9,28 @@
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
-  --border-subtle: rgba(148, 163, 184, 0.1);
+  --border-subtle: rgba(148, 163, 184, 0.12);
   --border-active: rgba(59, 130, 246, 0.5);
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
   --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] {
+  --bg-color: #f1f5f9;
+  --surface-color: #ffffff;
+  --surface-container: #f8fafc;
+  --surface-elevated: #e2e8f0;
+  --primary-color: #2563eb;
+  --primary-glow: rgba(37, 99, 235, 0.2);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-subtle: rgba(15, 23, 42, 0.12);
+  --border-active: rgba(37, 99, 235, 0.5);
+  --card-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
 }
 
 * {
@@ -53,16 +70,24 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   user-select: none;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .synapse-container {
   width: 100%;
   max-width: 100%;
   margin: 0;
-  padding: max(28px, env(safe-area-inset-top, 28px)) max(24px, env(safe-area-inset-right, 24px)) max(48px, env(safe-area-inset-bottom, 48px)) max(24px, env(safe-area-inset-left, 24px));
+  padding: 24px 32px 56px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+@media (max-width: 680px) {
+  .synapse-container {
+    padding: max(52px, env(safe-area-inset-top, 52px)) 16px max(32px, env(safe-area-inset-bottom, 32px)) 16px;
+    gap: 16px;
+  }
 }
 
 /* Header */
@@ -158,8 +183,8 @@ body {
   padding: 4px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
+  height: 44px;
   min-height: 44px;
-  height: auto;
   align-items: center;
   width: 100%;
 }
@@ -169,19 +194,19 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 0 10px;
   border-radius: 6px;
   font-size: 11.5px;
-  line-height: 1.25;
+  height: 36px;
+  min-height: 36px;
   background: transparent;
   color: var(--text-secondary);
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 36px;
-  height: auto;
   flex: 1;
   text-align: center;
+  white-space: nowrap;
 }
 
 .device-pill:hover {
@@ -190,20 +215,21 @@ body {
 
 .device-pill.active {
   background: var(--surface-elevated);
-  color: #60a5fa;
+  color: var(--primary-color);
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--card-shadow);
 }
 
-/* Theme & Settings Trigger Buttons */
-.theme-quick-btn,
+/* Settings Trigger Button */
 .settings-trigger-btn {
   background: var(--surface-color);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  font-size: 16px;
+  font-size: 18px;
   width: 44px;
   height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -212,16 +238,13 @@ body {
   transition: all 0.2s ease;
   margin: 0;
   flex-shrink: 0;
+  align-self: flex-end;
 }
 
-.theme-quick-btn:hover,
 .settings-trigger-btn:hover {
   color: var(--text-primary);
   border-color: var(--border-active);
   background: var(--surface-elevated);
-}
-
-.settings-trigger-btn:hover {
   transform: rotate(30deg);
 }
 

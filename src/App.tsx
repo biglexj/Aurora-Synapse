@@ -277,14 +277,6 @@ export default function App() {
           </div>
 
           <button
-            className="theme-quick-btn"
-            title={`Cambiar a modo ${theme === "dark" ? "claro" : "oscuro"}`}
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            {theme === "dark" ? "☀️" : "🌙"}
-          </button>
-
-          <button
             className="settings-trigger-btn"
             title="Configuración de Aurora Synapse"
             onClick={() => setIsSettingsOpen(true)}
