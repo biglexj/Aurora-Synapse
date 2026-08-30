@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 
 interface AppTarget {
@@ -32,6 +33,12 @@ interface ClassificationResult {
   detected_type: string;
 }
 
+interface SynapseSettings {
+  autostart: boolean;
+  minimize_to_tray: boolean;
+  lan_discovery: boolean;
+}
+
 export default function App() {
   const [apps, setApps] = useState<AppTarget[]>([]);
   const [devices, setDevices] = useState<DeviceNode[]>([]);
@@ -44,18 +51,37 @@ export default function App() {
   const [isDispatching, setIsDispatching] = useState<boolean>(false);
   const [failedIcons, setFailedIcons] = useState<Record<string, boolean>>({});
 
+  // Settings State
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [settings, setSettings] = useState<SynapseSettings>({
+    autostart: false,
+    minimize_to_tray: true,
+    lan_discovery: true,
+  });
+
   useEffect(() => {
     loadInitialData();
+
+    // Listen for tray settings event
+    const unlisten = listen("synapse://open-settings", () => {
+      setIsSettingsOpen(true);
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
   const loadInitialData = async () => {
     try {
       const registeredApps = await invoke<AppTarget[]>("get_registered_apps");
       const pairedDevices = await invoke<DeviceNode[]>("get_paired_devices");
+      const currentSettings = await invoke<SynapseSettings>("get_synapse_settings");
       setApps(registeredApps);
       setDevices(pairedDevices);
+      setSettings(currentSettings);
     } catch (err) {
-      console.error("Error al cargar apps iniciales:", err);
+      console.error("Error al cargar datos iniciales:", err);
     }
   };
 
@@ -107,6 +133,26 @@ export default function App() {
       setTimeout(() => {
         setStatusMessage(null);
       }, 5000);
+    }
+  };
+
+  const toggleAutostart = async () => {
+    try {
+      const nextState = !settings.autostart;
+      await invoke("set_autostart_setting", { enable: nextState });
+      setSettings((prev) => ({ ...prev, autostart: nextState }));
+    } catch (err) {
+      console.error("Error al cambiar auto-inicio:", err);
+    }
+  };
+
+  const toggleMinimizeToTray = async () => {
+    try {
+      const nextState = !settings.minimize_to_tray;
+      await invoke("set_minimize_to_tray_setting", { enable: nextState });
+      setSettings((prev) => ({ ...prev, minimize_to_tray: nextState }));
+    } catch (err) {
+      console.error("Error al cambiar minimizar a bandeja:", err);
     }
   };
 
@@ -168,21 +214,31 @@ export default function App() {
           </div>
         </div>
 
-        {/* Device Switcher */}
-        <div className="device-switcher">
-          <span className="device-label">Dispositivo Destino:</span>
-          <div className="device-pills">
-            {devices.map((dev) => (
-              <button
-                key={dev.id}
-                className={`device-pill ${selectedDevice === dev.id ? "active" : ""}`}
-                onClick={() => setSelectedDevice(dev.id)}
-              >
-                <span>{dev.device_type === "mobile" ? "📱" : "💻"}</span>
-                <span>{dev.name}</span>
-              </button>
-            ))}
+        {/* Right Header Actions: Device Switcher & Settings */}
+        <div className="header-right-actions">
+          <div className="device-switcher">
+            <span className="device-label">Dispositivo Destino:</span>
+            <div className="device-pills">
+              {devices.map((dev) => (
+                <button
+                  key={dev.id}
+                  className={`device-pill ${selectedDevice === dev.id ? "active" : ""}`}
+                  onClick={() => setSelectedDevice(dev.id)}
+                >
+                  <span>{dev.device_type === "mobile" ? "📱" : "💻"}</span>
+                  <span>{dev.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
+
+          <button
+            className="settings-trigger-btn"
+            title="Configuración de Aurora Synapse"
+            onClick={() => setIsSettingsOpen(true)}
+          >
+            ⚙️
+          </button>
         </div>
       </header>
 
@@ -337,6 +393,113 @@ export default function App() {
           })}
         </div>
       </section>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="modal-backdrop" onClick={() => setIsSettingsOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-header-title">
+                <span className="modal-icon">⚙️</span>
+                <h2>Configuración de Aurora Synapse</h2>
+              </div>
+              <button className="modal-close-btn" onClick={() => setIsSettingsOpen(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {/* Preferences Section */}
+              <div className="settings-group">
+                <h3 className="settings-group-title">COMPORTAMIENTO DEL SISTEMA</h3>
+
+                <label className="setting-row">
+                  <div className="setting-info">
+                    <span className="setting-label">Iniciar con Windows (Auto-Run)</span>
+                    <span className="setting-desc">
+                      Inicia Aurora Synapse en segundo plano al encender el equipo.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="setting-checkbox"
+                    checked={settings.autostart}
+                    onChange={toggleAutostart}
+                  />
+                </label>
+
+                <label className="setting-row">
+                  <div className="setting-info">
+                    <span className="setting-label">Minimizar a la Bandeja al Cerrar (X)</span>
+                    <span className="setting-desc">
+                      Mantiene la aplicación residente en el System Tray para enrutamiento instantáneo.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="setting-checkbox"
+                    checked={settings.minimize_to_tray}
+                    onChange={toggleMinimizeToTray}
+                  />
+                </label>
+
+                <label className="setting-row">
+                  <div className="setting-info">
+                    <span className="setting-label">Descubrimiento LAN (Puerto 49295)</span>
+                    <span className="setting-desc">
+                      Escucha conexiones de aplicaciones satélite y dispositivos móviles en la red local.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="setting-checkbox"
+                    checked={settings.lan_discovery}
+                    readOnly
+                  />
+                </label>
+              </div>
+
+              {/* About Ecosystem Section */}
+              <div className="settings-group about-section">
+                <h3 className="settings-group-title">ACERCA DEL ECOSISTEMA</h3>
+                <div className="about-card">
+                  <div className="about-logo">⚡</div>
+                  <div className="about-details">
+                    <h4 className="about-app-name">Aurora Synapse v0.1.0</h4>
+                    <p className="about-author">Desarrollado por <strong>Biglex J</strong> · 2026</p>
+                    <p className="about-license">Licencia GNU GPL v2.0 (GPL-2.0)</p>
+                  </div>
+                </div>
+
+                <div className="about-buttons">
+                  <button
+                    className="about-btn primary"
+                    onClick={() => invoke("dispatch_content", {
+                      appId: "about-donations",
+                      content: "",
+                      targetDeviceId: "local_pc",
+                    }).catch(() => {})}
+                  >
+                    💖 Donaciones Oficiales (Yape / Plin / Web)
+                  </button>
+                  <button
+                    className="about-btn secondary"
+                    onClick={() => window.open("https://buymeacoffee.com/biglexj", "_blank")}
+                  >
+                    ☕ Buy Me a Coffee
+                  </button>
+                  <button
+                    className="about-btn secondary"
+                    onClick={() => window.open("https://github.com/biglexj", "_blank")}
+                  >
+                    ⭐ GitHub Oficial
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
