@@ -744,6 +744,124 @@ fn is_mobile_platform() -> bool {
     cfg!(mobile)
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ReleaseAsset {
+    pub name: String,
+    pub browser_download_url: String,
+    pub size: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UpdateCheckResult {
+    pub available: bool,
+    pub current_version: String,
+    pub latest_version: String,
+    pub release_name: String,
+    pub release_notes: String,
+    pub published_at: String,
+    pub html_url: String,
+    pub exe_url: Option<String>,
+    pub apk_url: Option<String>,
+    pub assets: Vec<ReleaseAsset>,
+}
+
+fn is_version_greater(remote: &str, current: &str) -> bool {
+    let parse_parts = |s: &str| -> Vec<u32> {
+        s.split('.')
+            .map(|p| p.chars().take_while(|c| c.is_ascii_digit()).collect::<String>())
+            .filter_map(|p| p.parse::<u32>().ok())
+            .collect()
+    };
+
+    let r_parts = parse_parts(remote);
+    let c_parts = parse_parts(current);
+
+    let max_len = r_parts.len().max(c_parts.len());
+    for i in 0..max_len {
+        let r = r_parts.get(i).copied().unwrap_or(0);
+        let c = c_parts.get(i).copied().unwrap_or(0);
+        if r > c {
+            return true;
+        } else if r < c {
+            return false;
+        }
+    }
+    false
+}
+
+#[tauri::command]
+async fn check_for_updates() -> Result<UpdateCheckResult, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("Aurora-Synapse/1.0.0")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let url = "https://api.github.com/repos/biglexj/Aurora-Synapse/releases/latest";
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Error conectando con GitHub: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("GitHub API retornó status: {}", resp.status()));
+    }
+
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Error parseando respuesta JSON: {}", e))?;
+
+    let tag_name = json["tag_name"].as_str().unwrap_or("").to_string();
+    let release_name = json["name"].as_str().unwrap_or(&tag_name).to_string();
+    let body = json["body"].as_str().unwrap_or("").to_string();
+    let published_at = json["published_at"].as_str().unwrap_or("").to_string();
+    let html_url = json["html_url"].as_str().unwrap_or("").to_string();
+
+    let clean_tag = tag_name.trim_start_matches('v');
+    let current_version = env!("CARGO_PKG_VERSION");
+
+    let mut assets = Vec::new();
+    let mut exe_url = None;
+    let mut apk_url = None;
+
+    if let Some(asset_arr) = json["assets"].as_array() {
+        for a in asset_arr {
+            let name = a["name"].as_str().unwrap_or("").to_string();
+            let dl_url = a["browser_download_url"].as_str().unwrap_or("").to_string();
+            let size = a["size"].as_u64().unwrap_or(0);
+
+            if name.ends_with(".exe") && !name.contains("-portable") {
+                exe_url = Some(dl_url.clone());
+            }
+            if name.ends_with(".apk") {
+                apk_url = Some(dl_url.clone());
+            }
+
+            assets.push(ReleaseAsset {
+                name,
+                browser_download_url: dl_url,
+                size,
+            });
+        }
+    }
+
+    let available = is_version_greater(clean_tag, current_version);
+
+    Ok(UpdateCheckResult {
+        available,
+        current_version: current_version.to_string(),
+        latest_version: clean_tag.to_string(),
+        release_name,
+        release_notes: body,
+        published_at,
+        html_url,
+        exe_url,
+        apk_url,
+        assets,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let is_dev_mode = cfg!(debug_assertions)
@@ -887,7 +1005,8 @@ pub fn run() {
             get_synapse_settings,
             set_autostart_setting,
             set_minimize_to_tray_setting,
-            is_mobile_platform
+            is_mobile_platform,
+            check_for_updates
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

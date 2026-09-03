@@ -24,6 +24,15 @@ Documento estratégico de evolución, características planificadas y registro d
 ---
 
 ## 🟢 Completado
+ 
+### v1.0.0 — Primera Edición Oficial de Producción
+- [x] **Consolidación de la Versión 1.0.0 Oficial**.
+- [x] **Bloqueo Inteligente de Instancia Única (Single Instance)**.
+- [x] **Coexistencia Limpia de Instancias Dev y Release**.
+- [x] **Sistema Canónico de Auto-Actualización con GitHub Releases**.
+- [x] **Actualización de Icono de Marca (fondo oficial) e icono DaVinci Flow**.
+- [x] **Distribución Unificada: Instalador NSIS .exe y APK Universal**.
+- [x] **Corrección de Autostart y eliminación de error 404 en Windows**.
 
 ### v0.1.0 — Lanzamiento Inicial
 - [x] **Arquitectura Base Tauri v2 + Rust + React 19**.

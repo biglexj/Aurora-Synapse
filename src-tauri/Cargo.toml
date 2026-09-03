@@ -1,6 +1,6 @@
 [package]
 name = "aurora-synapse"
-version = "0.1.0"
+version = "1.0.0"
 description = "Aurora Synapse - Orquestador y Puente Universal Multiplataforma"
 authors = ["biglexj"]
 edition = "2021"

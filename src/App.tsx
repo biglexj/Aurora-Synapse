@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
+import { UpdateModalDialog } from "./features/updater/UpdateModalDialog";
+import { Toast } from "./features/updater/Toast";
+import { checkAppUpdates, APP_CURRENT_VERSION } from "./features/updater/updaterService";
+import { UpdateCheckResult } from "./features/updater/types";
 
 interface AppTarget {
   id: string;
@@ -70,6 +74,46 @@ export default function App() {
     minimize_to_tray: true,
     lan_discovery: true,
   });
+
+  // Auto-updater State (Core-Docs Standard)
+  const [pendingUpdate, setPendingUpdate] = useState<UpdateCheckResult | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<"success" | "warning" | "info">("success");
+
+  // Silent update check on mount (Core-Docs Req #1)
+  useEffect(() => {
+    checkAppUpdates()
+      .then((res) => {
+        if (res.available) {
+          setPendingUpdate(res);
+        }
+      })
+      .catch(() => {
+        // Silencioso al inicio en caso de fallas de red
+      });
+  }, []);
+
+  const handleManualUpdateCheck = async () => {
+    setIsCheckingUpdates(true);
+    try {
+      const res = await checkAppUpdates();
+      if (res.available) {
+        setIsSettingsOpen(false); // Cierre síncrono del modal secundario (Core-Docs Req #3)
+        setPendingUpdate(res);
+        setShowUpdateModal(true);
+      } else {
+        setToastMessage("¡Estás en la última versión de Aurora Synapse!");
+        setToastType("success");
+      }
+    } catch {
+      setToastMessage("No se pudo comprobar la actualización. Revisa tu conexión a internet.");
+      setToastType("warning");
+    } finally {
+      setIsCheckingUpdates(false);
+    }
+  };
 
   useEffect(() => {
     const applyTheme = () => {
@@ -271,11 +315,15 @@ export default function App() {
         <div className="header-brand">
           <div className="brand-logo">
             <img
-              src="/assets/branding/icons/icon-transparent.webp"
+              src="/assets/branding/icons/icon.webp"
               alt="Aurora Synapse"
               className="brand-logo-img"
               onError={(e) => {
                 const target = e.currentTarget;
+                if (!target.src.endsWith(".png")) {
+                  target.src = "/assets/branding/icons/icon.png";
+                  return;
+                }
                 target.style.display = "none";
                 if (target.parentElement) {
                   target.parentElement.innerText = "⚡";
@@ -290,13 +338,25 @@ export default function App() {
           </div>
         </div>
 
-        <button
-          className="settings-trigger-btn"
-          title="Configuración de Aurora Synapse"
-          onClick={() => setIsSettingsOpen(true)}
-        >
-          ⚙️
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {pendingUpdate && (
+            <button
+              className="header-update-badge"
+              title="Nueva versión disponible"
+              onClick={() => setShowUpdateModal(true)}
+            >
+              🚀 v{pendingUpdate.latest_version} disponible
+            </button>
+          )}
+
+          <button
+            className="settings-trigger-btn"
+            title="Configuración de Aurora Synapse"
+            onClick={() => setIsSettingsOpen(true)}
+          >
+            ⚙️
+          </button>
+        </div>
       </header>
 
       {/* Target Device Switcher (Full Width) */}
@@ -650,10 +710,47 @@ export default function App() {
                     🐙 GitHub Oficial
                   </a>
                 </div>
+
+                <div className="check-update-trigger">
+                  <div>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#94a3b8", display: "block" }}>
+                      Versión Actual: v{APP_CURRENT_VERSION}
+                    </span>
+                    <span style={{ fontSize: "11px", color: "#64748b" }}>
+                      Canal oficial GitHub Releases
+                    </span>
+                  </div>
+                  <button
+                    className="check-update-btn"
+                    disabled={isCheckingUpdates}
+                    onClick={handleManualUpdateCheck}
+                  >
+                    {isCheckingUpdates ? "Buscando..." : "Buscar actualizaciones"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Toast Flotante Centrado Superior (Core-Docs Req #2 & #7) */}
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type={toastType}
+          durationMs={4000}
+          onClose={() => setToastMessage(null)}
+        />
+      )}
+
+      {/* Modal Central Interactivo de Actualización (Core-Docs Req #4) */}
+      {showUpdateModal && pendingUpdate && (
+        <UpdateModalDialog
+          update={pendingUpdate}
+          isMobile={isMobile}
+          onClose={() => setShowUpdateModal(false)}
+        />
       )}
     </div>
   );
