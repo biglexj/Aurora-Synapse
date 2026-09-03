@@ -77,4 +77,12 @@ if (Test-Path "$targetAssetsDir\ely-intelligence\ely-intelligence.webp") {
     Copy-Item "$targetAssetsDir\ely-intelligence\ely-intelligence.webp" "$targetAssetsDir\ely-intelligence\icon.webp" -Force
 }
 
+# 4. Aurora Synapse Branding Icons
+$brandingSrcDir = "D:\Proyectos\biglexj\Aurora-Synapse\assets\branding\icons"
+$brandingDestDir = "D:\Proyectos\biglexj\Aurora-Synapse\public\assets\branding\icons"
+if (Test-Path $brandingSrcDir) {
+    New-Item -ItemType Directory -Force -Path $brandingDestDir | Out-Null
+    Copy-Item "$brandingSrcDir\*" "$brandingDestDir\" -Force
+}
+
 Write-Host "✅ Icons synchronized and converted to WebP successfully!"

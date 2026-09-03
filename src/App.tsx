@@ -269,7 +269,20 @@ export default function App() {
       {/* Header */}
       <header className="synapse-header">
         <div className="header-brand">
-          <div className="brand-logo">⚡</div>
+          <div className="brand-logo">
+            <img
+              src="/assets/branding/icons/icon-transparent.webp"
+              alt="Aurora Synapse"
+              className="brand-logo-img"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.style.display = "none";
+                if (target.parentElement) {
+                  target.parentElement.innerText = "⚡";
+                }
+              }}
+            />
+          </div>
           <div>
             <span className="launchpad-tag">LAUNCHPAD & ROUTER</span>
             <h1 className="brand-title">TODAS LAS APLICACIONES</h1>

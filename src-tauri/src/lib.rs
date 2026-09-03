@@ -679,8 +679,54 @@ fn set_autostart_setting(#[allow(unused)] app: tauri::AppHandle, enable: bool) -
     {
         if enable {
             app.autolaunch().enable().map_err(|e| e.to_string())?;
+
+            #[cfg(windows)]
+            {
+                // In debug mode or if installed release binary exists, ensure registry points to release binary
+                // to avoid launching target\debug\aurora-synapse.exe on Windows boot (which causes 404/connection errors
+                // because the Vite dev server is not running).
+                if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+                    let release_exe = std::path::PathBuf::from(&local_app_data)
+                        .join("Aurora Synapse")
+                        .join("aurora-synapse.exe");
+
+                    if release_exe.exists() {
+                        let cmd_val = format!("\"{}\" --autostart", release_exe.to_string_lossy());
+                        use std::os::windows::process::CommandExt;
+                        let _ = std::process::Command::new("reg")
+                            .args([
+                                "add",
+                                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                                "/v",
+                                "Aurora Synapse",
+                                "/t",
+                                "REG_SZ",
+                                "/d",
+                                &cmd_val,
+                                "/f",
+                            ])
+                            .creation_flags(0x08000000)
+                            .status();
+                    }
+                }
+            }
         } else {
             app.autolaunch().disable().map_err(|e| e.to_string())?;
+
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                let _ = std::process::Command::new("reg")
+                    .args([
+                        "delete",
+                        "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                        "/v",
+                        "Aurora Synapse",
+                        "/f",
+                    ])
+                    .creation_flags(0x08000000)
+                    .status();
+            }
         }
     }
     Ok(enable)
@@ -700,12 +746,29 @@ fn is_mobile_platform() -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let is_dev_mode = cfg!(debug_assertions)
+        || std::env::args().any(|a| a == "--dev" || a == "--multi-instance" || a == "-d")
+        || std::env::var("SYNAPSE_DEV").is_ok()
+        || std::env::var("SYNAPSE_MULTI_INSTANCE").is_ok();
+
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init());
 
     #[cfg(desktop)]
     {
+        // En producción/estable protegemos contra múltiples instancias.
+        // En modo desarrollo permitimos coexistencia con la versión instalada.
+        if !is_dev_mode {
+            builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.unminimize();
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }));
+        }
+
         builder = builder
             .plugin(tauri_plugin_window_state::Builder::default().build())
             .plugin(tauri_plugin_autostart::init(
@@ -715,7 +778,7 @@ pub fn run() {
     }
 
     builder
-        .setup(|_app| {
+        .setup(move |_app| {
             #[cfg(desktop)]
             {
                 let app = _app;
@@ -729,9 +792,15 @@ pub fn run() {
                     .items(&[&show_item, &settings_item, &separator, &quit_item])
                     .build()?;
 
+                let tray_tooltip = if is_dev_mode {
+                    "Aurora Synapse (Dev) · Orquestador Universal"
+                } else {
+                    "Aurora Synapse · Orquestador Universal"
+                };
+
                 let _tray = TrayIconBuilder::new()
                     .icon(app.default_window_icon().unwrap().clone())
-                    .tooltip("Aurora Synapse · Orquestador Universal")
+                    .tooltip(tray_tooltip)
                     .menu(&tray_menu)
                     .show_menu_on_left_click(false)
                     .on_menu_event(|app, event| {
@@ -780,8 +849,22 @@ pub fn run() {
                     })
                     .build(app)?;
 
-                // Prevent window close if minimize to tray is enabled
+                let is_autostart = std::env::args().any(|a| a == "--autostart");
+
+                // Window visibility & autostart handling
                 if let Some(main_window) = app.get_webview_window("main") {
+                    if is_dev_mode {
+                        let _ = main_window.set_title("Aurora Synapse (Dev)");
+                    }
+
+                    if !is_autostart {
+                        let _ = main_window.show();
+                        let _ = main_window.unminimize();
+                        let _ = main_window.set_focus();
+                    } else {
+                        let _ = main_window.hide();
+                    }
+
                     let win = main_window.clone();
                     main_window.on_window_event(move |event| {
                         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
