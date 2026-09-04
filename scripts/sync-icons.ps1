@@ -28,7 +28,9 @@ foreach ($srcFolder in $mappings.Keys) {
 
     # 1. Main Icon (Standard with background)
     $mainCandidates = @(
+        "$fullSrcPath\$srcFolder.webp",
         "$fullSrcPath\$srcFolder.png",
+        "$fullSrcPath\icon.webp",
         "$fullSrcPath\icon.png",
         "$fullSrcPath\1080x1080.png",
         "$fullSrcPath\300x300.png"
@@ -37,32 +39,66 @@ foreach ($srcFolder in $mappings.Keys) {
 
     if ($mainSrc) {
         Write-Host "Converting Standard Icon for $slug ($mainSrc)..."
-        # Convert to WebP using ImageMagick
-        & magick "$mainSrc" -quality 92 "$destPublic\icon.webp"
-        & magick "$mainSrc" -quality 92 "$destAssets\icon.webp"
-        Copy-Item "$mainSrc" "$destPublic\icon.png" -Force
-        Copy-Item "$mainSrc" "$destAssets\icon.png" -Force
+        if ($mainSrc.EndsWith(".webp")) {
+            Copy-Item "$mainSrc" "$destPublic\icon.webp" -Force
+            Copy-Item "$mainSrc" "$destAssets\icon.webp" -Force
+            $companionPng = [System.IO.Path]::ChangeExtension($mainSrc, ".png")
+            if (Test-Path $companionPng) {
+                Copy-Item "$companionPng" "$destPublic\icon.png" -Force
+                Copy-Item "$companionPng" "$destAssets\icon.png" -Force
+            } else {
+                & magick "$mainSrc" "$destPublic\icon.png"
+                & magick "$mainSrc" "$destAssets\icon.png"
+            }
+        } else {
+            # Convert to WebP using ImageMagick
+            & magick "$mainSrc" -quality 92 "$destPublic\icon.webp"
+            & magick "$mainSrc" -quality 92 "$destAssets\icon.webp"
+            Copy-Item "$mainSrc" "$destPublic\icon.png" -Force
+            Copy-Item "$mainSrc" "$destAssets\icon.png" -Force
+        }
     }
 
     # 2. Transparent Icon (Emblem variant)
     $transCandidates = @(
+        "$fullSrcPath\$srcFolder-transparent.webp",
         "$fullSrcPath\$srcFolder-transparent.png",
+        "$fullSrcPath\icon-transparent.webp",
         "$fullSrcPath\icon-transparent.png",
+        "$fullSrcPath\LyraFlow-transparent.webp",
         "$fullSrcPath\LyraFlow-transparent.png",
+        "$fullSrcPath\WinTTS-transparent.webp",
         "$fullSrcPath\WinTTS-transparent.png",
+        "$fullSrcPath\MouziFlow-transparent.webp",
         "$fullSrcPath\MouziFlow-transparent.png",
+        "$fullSrcPath\Prisma-transparent.webp",
         "$fullSrcPath\Prisma-transparent.png",
+        "$fullSrcPath\Gallery-DL-GUI-transparent.webp",
         "$fullSrcPath\Gallery-DL-GUI-transparent.png",
+        "$fullSrcPath\LunaYTDLP-transparent.webp",
         "$fullSrcPath\LunaYTDLP-transparent.png"
     )
     $transSrc = $transCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
     if ($transSrc) {
         Write-Host "Converting Transparent Icon for $slug ($transSrc)..."
-        & magick "$transSrc" -quality 92 "$destPublic\icon-transparent.webp"
-        & magick "$transSrc" -quality 92 "$destAssets\icon-transparent.webp"
-        Copy-Item "$transSrc" "$destPublic\icon-transparent.png" -Force
-        Copy-Item "$transSrc" "$destAssets\icon-transparent.png" -Force
+        if ($transSrc.EndsWith(".webp")) {
+            Copy-Item "$transSrc" "$destPublic\icon-transparent.webp" -Force
+            Copy-Item "$transSrc" "$destAssets\icon-transparent.webp" -Force
+            $companionPng = [System.IO.Path]::ChangeExtension($transSrc, ".png")
+            if (Test-Path $companionPng) {
+                Copy-Item "$companionPng" "$destPublic\icon-transparent.png" -Force
+                Copy-Item "$companionPng" "$destAssets\icon-transparent.png" -Force
+            } else {
+                & magick "$transSrc" "$destPublic\icon-transparent.png"
+                & magick "$transSrc" "$destAssets\icon-transparent.png"
+            }
+        } else {
+            & magick "$transSrc" -quality 92 "$destPublic\icon-transparent.webp"
+            & magick "$transSrc" -quality 92 "$destAssets\icon-transparent.webp"
+            Copy-Item "$transSrc" "$destPublic\icon-transparent.png" -Force
+            Copy-Item "$transSrc" "$destAssets\icon-transparent.png" -Force
+        }
     }
 }
 
