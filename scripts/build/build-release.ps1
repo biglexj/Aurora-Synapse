@@ -168,7 +168,7 @@ Write-Host "[5/5] Sincronizando Git y publicando release oficial..." -Foreground
 Set-Location $root
 
 $currentBranch = (& git branch --show-current).Trim()
-if (-not $currentBranch) { $currentBranch = "main" }
+if (-not $currentBranch) { $currentBranch = "master" }
 
 git add .
 $hasStagedChanges = (& git status --porcelain)
@@ -180,9 +180,6 @@ git tag -a "v$Version" -m "Release v$Version" -f
 $hasRemote = (& git remote)
 if ($hasRemote) {
     git push origin "$currentBranch" --tags --force
-    if ($currentBranch -ne "main") {
-        git push origin "${currentBranch}:main" --force
-    }
 }
 
 # 5. Publicación en GitHub Releases

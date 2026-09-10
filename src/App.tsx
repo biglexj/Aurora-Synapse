@@ -75,6 +75,43 @@ export default function App() {
     lan_discovery: true,
   });
 
+  // LAN PC IP State (Configuración de destino para móvil -> PC)
+  const [pcIp, setPcIp] = useState<string>(() => {
+    return localStorage.getItem("synapse_pc_ip") || "192.168.1.121";
+  });
+  const [pingStatus, setPingStatus] = useState<"idle" | "testing" | "ok" | "fail">("idle");
+
+  const handlePcIpChange = (ip: string) => {
+    setPcIp(ip);
+    localStorage.setItem("synapse_pc_ip", ip);
+  };
+
+  const testPcConnection = async () => {
+    setPingStatus("testing");
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(`http://${pcIp}:49295/status`, {
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        setPingStatus("ok");
+        setToastMessage(`✅ PC Synapse Online en http://${pcIp}:49295`);
+        setToastType("success");
+      } else {
+        setPingStatus("fail");
+        setToastMessage(`⚠️ Respuesta anormal (${res.status}) desde ${pcIp}:49295`);
+        setToastType("warning");
+      }
+    } catch {
+      setPingStatus("fail");
+      setToastMessage(`❌ Sin conexión con ${pcIp}:49295. Verifica Wi-Fi y firewall.`);
+      setToastType("warning");
+    }
+  };
+
   // Auto-updater State (Core-Docs Standard)
   const [pendingUpdate, setPendingUpdate] = useState<UpdateCheckResult | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
@@ -153,11 +190,11 @@ export default function App() {
 
   const loadInitialData = async () => {
     try {
-      const registeredApps = await invoke<AppTarget[]>("get_registered_apps");
-      const pairedDevices = await invoke<DeviceNode[]>("get_paired_devices");
-      const currentSettings = await invoke<SynapseSettings>("get_synapse_settings");
       const mobileCheck = await invoke<boolean>("is_mobile_platform").catch(() => /Android|iPhone|iPad/i.test(navigator.userAgent));
       const isMob = Boolean(mobileCheck) || /Android|iPhone|iPad/i.test(navigator.userAgent);
+      const registeredApps = await invoke<AppTarget[]>("get_registered_apps");
+      const pairedDevices = await invoke<DeviceNode[]>("get_paired_devices", { isMobile: isMob });
+      const currentSettings = await invoke<SynapseSettings>("get_synapse_settings");
       
       setApps(registeredApps);
       setDevices(pairedDevices);
@@ -169,7 +206,7 @@ export default function App() {
         setSelectedPlatform("android");
         setSelectedDevice("android_phone");
       } else {
-        setSelectedPlatform("windows");
+        setSelectedPlatform("all");
         setSelectedDevice("local_pc");
       }
     } catch (err) {
@@ -202,24 +239,36 @@ export default function App() {
     }
   };
 
-  const handleDispatch = async (targetAppId?: string) => {
+  const handleDispatch = async (targetAppId?: string, overrideDeviceId?: string) => {
     const appId = targetAppId || classification?.recommended_app_id;
     if (!appId) return;
 
     const targetApp = apps.find((a) => a.id === appId);
     if (targetApp?.status === "PROXIMAMENTE") {
-      setStatusMessage({ text: `${targetApp.name} estará disponible próximamente.`, type: "info" });
+      setStatusMessage({ text: `${targetApp.name} estará disponible próximamente en el ecosistema.`, type: "info" });
       return;
     }
 
+    // Si es móvil y la app es exclusiva de PC (no soporta Android ni es web), enrutar a la PC central
+    let devId = overrideDeviceId || selectedDevice;
+    if (isMobile && targetApp && !targetApp.platforms.includes("android") && !targetApp.is_web_app) {
+      devId = "local_pc";
+    }
+
     setIsDispatching(true);
-    setStatusMessage({ text: "Despachando a través de Aurora Synapse...", type: "info" });
+    setStatusMessage({
+      text: devId === "local_pc" && isMobile
+        ? `Enviando a ${targetApp?.name} en la PC (${pcIp})...`
+        : `Despachando a través de Aurora Synapse...`,
+      type: "info",
+    });
 
     try {
       const res = await invoke<string>("dispatch_content", {
         appId,
         content: inputText,
-        targetDeviceId: selectedDevice,
+        targetDeviceId: devId,
+        pcIp: pcIp,
       });
       setStatusMessage({ text: res, type: "success" });
       setInputText("");
@@ -227,7 +276,7 @@ export default function App() {
       setStatusMessage({ text: String(err), type: "error" });
     } finally {
       setIsDispatching(false);
-      setTimeout(() => setStatusMessage(null), 4000);
+      setTimeout(() => setStatusMessage(null), 5000);
     }
   };
 
@@ -257,8 +306,10 @@ export default function App() {
 
   const platformsList = useMemo(() => {
     return [
-      { id: "windows", label: "Windows", icon: "🪟" },
-      { id: "android", label: "Android", icon: "📱" },
+      { id: "all", label: "Todos los S.O.", icon: "🌌" },
+      { id: "android", label: "Android (Móvil)", icon: "📱" },
+      { id: "windows", label: "Windows (PC)", icon: "🖥️" },
+      { id: "web", label: "Web Apps", icon: "🌐" },
       { id: "linux", label: "Linux", icon: "🐧" },
     ];
   }, []);
@@ -279,9 +330,18 @@ export default function App() {
         matchesCat = app.category === selectedCategory;
       }
 
-      const matchesPlatform =
-        !selectedPlatform ||
-        (app.platforms && app.platforms.includes(selectedPlatform));
+      let matchesPlatform = true;
+      if (selectedPlatform === "all") {
+        matchesPlatform = true;
+      } else if (selectedPlatform === "web") {
+        matchesPlatform = app.is_web_app || (app.platforms && app.platforms.includes("web"));
+      } else if (selectedPlatform === "android") {
+        matchesPlatform = app.platforms && app.platforms.includes("android");
+      } else if (selectedPlatform === "windows") {
+        matchesPlatform = app.platforms && app.platforms.includes("windows");
+      } else if (selectedPlatform === "linux") {
+        matchesPlatform = app.platforms && app.platforms.includes("linux");
+      }
 
       return matchesSearch && matchesCat && matchesPlatform;
     });
@@ -305,6 +365,33 @@ export default function App() {
         return "badge-disponible";
       default:
         return "badge-default";
+    }
+  };
+
+  const getCardActionText = (app: AppTarget) => {
+    if (app.status === "PROXIMAMENTE") return "Próximamente";
+    const hasInput = Boolean(inputText.trim());
+    const isAndroidNative = app.platforms?.includes("android");
+    const isPcOnly = !isAndroidNative && !app.is_web_app;
+
+    if (isMobile) {
+      if (app.is_web_app) {
+        return hasInput ? "🌐 Despachar Web" : "🌐 Abrir Web";
+      }
+      if (isPcOnly) {
+        return hasInput ? "🖥️ Enviar a PC" : "🖥️ Abrir en PC";
+      }
+      return hasInput ? "📱 Despachar" : "📱 Abrir App";
+    } else {
+      if (selectedDevice === "android_phone") {
+        if (isAndroidNative) {
+          return hasInput ? "📱 Enviar a Móvil" : "📱 Abrir en Móvil";
+        }
+      }
+      if (app.is_web_app) {
+        return hasInput ? "🌐 Abrir Portal" : "🌐 Visitar";
+      }
+      return hasInput ? "🚀 Enviar" : "⚡ Lanzar";
     }
   };
 
@@ -531,6 +618,15 @@ export default function App() {
                     </div>
                     
                     <div className="badges-stack">
+                      {app.is_web_app ? (
+                        <span className="platform-os-badge badge-web">🌐 WEB</span>
+                      ) : app.platforms?.includes("android") && app.platforms?.includes("windows") ? (
+                        <span className="platform-os-badge badge-hybrid">📱/🖥️ HÍBRIDO</span>
+                      ) : app.platforms?.includes("android") ? (
+                        <span className="platform-os-badge badge-android">📱 ANDROID</span>
+                      ) : (
+                        <span className="platform-os-badge badge-pc">🖥️ PC SOLO</span>
+                      )}
                       <span className={`status-badge ${getStatusBadgeClass(app.status)}`}>
                         {app.status}
                       </span>
@@ -556,13 +652,7 @@ export default function App() {
                         handleDispatch(app.id);
                       }}
                     >
-                      {isUpcoming
-                        ? "Próximamente"
-                        : inputText.trim()
-                        ? "Enviar"
-                        : app.is_web_app
-                        ? "Visitar"
-                        : "Lanzar"}
+                      {getCardActionText(app)}
                     </button>
                   </div>
                 </div>
@@ -690,6 +780,37 @@ export default function App() {
                   <span className="setting-desc">Permite enviar y recibir enlaces y medios entre dispositivos en la misma red local.</span>
                 </div>
                 <span className="active-badge">Activo</span>
+              </div>
+
+              <div className="setting-lan-box">
+                <div className="setting-info">
+                  <span className="setting-title">💻 Dirección IP de la PC (LAN)</span>
+                  <span className="setting-desc">
+                    Permite enviar descargas desde el teléfono hacia Gallery-DL y Luna Fetch ejecutándose en la PC ({pcIp}:49295 / 18274).
+                  </span>
+                </div>
+                <div className="lan-ip-control-row">
+                  <input
+                    type="text"
+                    className="lan-ip-input"
+                    value={pcIp}
+                    placeholder="192.168.1.121"
+                    onChange={(e) => handlePcIpChange(e.target.value)}
+                  />
+                  <button
+                    className={`lan-ping-btn ${pingStatus}`}
+                    disabled={pingStatus === "testing"}
+                    onClick={testPcConnection}
+                  >
+                    {pingStatus === "testing"
+                      ? "⏳ Conectando..."
+                      : pingStatus === "ok"
+                      ? "✅ Conectado"
+                      : pingStatus === "fail"
+                      ? "❌ Sin conexión"
+                      : "🔍 Probar Conexión"}
+                  </button>
+                </div>
               </div>
 
               <hr className="modal-divider" />

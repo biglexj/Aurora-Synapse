@@ -4,14 +4,13 @@ Documento estratégico de evolución, características planificadas y registro d
 
 ---
 
-## 🔴 Pendientes activos (v0.2.0)
-- [ ] **Servidor HTTP LAN embebido (Puerto 49295)**: Recepción directa de payloads `/synapse` enviados por clientes móviles sin intermediarios.
+## 🔴 Pendientes activos (v1.1.0)
 - [ ] **Descubrimiento UDP Multicast (Puerto 49289)**: Emparejamiento sin configuración (ZeroConf) entre instancias de escritorio y dispositivos Android en la misma red Wi-Fi.
 - [ ] **Android Share Sheet Integration (`ReceiveShareActivity`)**: Integrar intent filter en Android para registrar Synapse en el menú nativo de "Compartir".
 
 ---
 
-## 🟡 Intermedio (v0.3.0+)
+## 🟡 Intermedio (v1.2.0+)
 - [ ] **Sincronización Opcional de Portapapeles (Universal Clipboard)**: Toggle en configuración para propagar texto copiado automáticamente entre dispositivos emparejados.
 - [ ] **Handoff Multimedia Bidireccional**: Transferir reproducción en caliente entre Prisma en PC y teléfono móvil.
 - [ ] **Atajo de Teclado Global (Global Hotkey)**: Invocar la barra de despacho rápido (`Alt + Espacio` o `Ctrl + Shift + S`) desde cualquier parte del sistema operativo.
@@ -25,8 +24,14 @@ Documento estratégico de evolución, características planificadas y registro d
 
 ## 🟢 Completado
  
-### v1.0.0 — Primera Edición Oficial de Producción
-- [x] **Consolidación de la Versión 1.0.0 Oficial**.
+### v1.0.0 — Primera Edición Oficial de Producción (2026-09-10)
+- [x] **Consolidación de la Versión 1.0.0 Oficial Multiplataforma**.
+- [x] **Integración Oficial de Pixi Store (`https://pixi.qzz.io/`)**.
+- [x] **Lanzamiento Nativo Directo en Android (Luna Fetch, Super Galería, Ely-Tesia)**.
+- [x] **Despacho Universal Móvil ➔ PC LAN (Gallery-DL GUI, Luna Fetch)**.
+- [x] **Servidor HTTP LAN Embebido (Puerto 49295)**.
+- [x] **Diferenciación y Badges de S.O. con Filtro Segmentado**.
+- [x] **Configuración LAN con Test de Conexión en Tiempo Real**.
 - [x] **Bloqueo Inteligente de Instancia Única (Single Instance)**.
 - [x] **Coexistencia Limpia de Instancias Dev y Release**.
 - [x] **Sistema Canónico de Auto-Actualización con GitHub Releases**.

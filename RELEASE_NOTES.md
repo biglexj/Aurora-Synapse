@@ -4,14 +4,20 @@ Todas las versiones oficiales y registros de cambios notables de Aurora Synapse 
 
 ---
 
-## ⚡ [1.0.0] — 2026-09-03
+## ⚡ [1.0.0] — 2026-09-10
 
 ### 🚀 Primera Versión Oficial de Producción
+- **Integración Oficial de Pixi Store**: Reconocimiento automático y acceso directo al portal oficial de temas interactivos y presets (`https://pixi.qzz.io/`) desde el catálogo y clasificador de intenciones.
+- **Lanzamiento Nativo Directo en Android**: Integración del plugin nativo Android para apertura limpia sin parámetros de **Luna Fetch**, **Super Galería** y **Ely-Tesia** vía Package Intents y enlace universal, eliminando errores de ActivityNotFound.
+- **Despacho Universal Móvil ➔ PC LAN**: Botón inteligente `🖥️ Enviar a PC` en aplicaciones exclusivas de escritorio (como **Gallery-DL GUI**) que enruta descargas de forma determinista hacia la computadora por red local (`:18274` y `:49295`).
+- **Servidor HTTP LAN Embebido (Puerto 49295)**: Listener asíncrono en Tokio con soporte CORS y endpoints `/status` y `/dispatch` para interconexión universal con clientes móviles.
+- **Diferenciación y Badges de S.O.**: Clasificación visual en tarjetas (`📱 ANDROID`, `🖥️ PC SOLO`, `📱/🖥️ HÍBRIDO`, `🌐 WEB`) y pestañas de filtrado por Sistema Operativo.
+- **Configuración LAN con Test de Conexión**: Selector de dirección IP de la PC en Ajustes con persistencia local y botón interactivo para probar conectividad en tiempo real.
 - **Instancia Única (Single Instance)**: Integración del estándar de instancia única para evitar múltiples procesos concurrentes en producción, restaurando y enfocando la ventana activa si la aplicación ya se encuentra residente en el sistema.
 - **Entorno de Desarrollo y Producción Independientes**: Capacidad de ejecutar sesiones de desarrollo concurrentes con la versión instalada sin colisiones de named pipes ni suplantación de ventanas.
 - **Sistema de Auto-Actualizaciones Integrado**:
   - Verificación silenciosa en segundo plano al iniciar la aplicación.
-  - Verificación interactiva manual desde Configuración con diálogo modal (80% ancho, máx 480px) y notificación flotante (Toast) de 4 segundos.
+  - Verificación interactiva manual desde Configuración con diálogo modal y notificación flotante (Toast) de 4 segundos.
   - Sanitización canónica de notas de versión en Markdown para lectura limpia en la interfaz de usuario.
 - **Actualización de Marca e Iconografía**:
   - Sustitución del imagotipo transparente en el encabezado por el icono oficial con fondo unificado.
