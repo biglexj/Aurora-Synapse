@@ -1,15 +1,22 @@
 {
   "name": "aurora-synapse",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "tauri dev",
+    "dev:frontend": "vite",
+    "dev:web": "vite",
     "build": "tsc && vite build",
+    "build:frontend": "tsc && vite build",
+    "build:desktop": "tauri build --no-bundle",
+    "compile": "bun run build && bun run build:desktop",
     "preview": "vite preview",
     "tauri": "tauri",
     "android": "powershell.exe -ExecutionPolicy Bypass -File ./scripts/build/install-android.ps1",
-    "release": "powershell.exe -ExecutionPolicy Bypass -File ./scripts/build/build-release.ps1",
+    "release": "powershell.exe -ExecutionPolicy Bypass -File ./scripts/build/build-release.ps1 -LocalOnly",
+    "release:local": "powershell.exe -ExecutionPolicy Bypass -File ./scripts/build/build-release.ps1 -LocalOnly",
+    "release:publish": "powershell.exe -ExecutionPolicy Bypass -File ./scripts/build/build-release.ps1",
     "sync:icons": "powershell.exe -ExecutionPolicy Bypass -File ./scripts/sync-icons.ps1"
   },
   "dependencies": {
