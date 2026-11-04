@@ -1,0 +1,32 @@
+# Configuración de tareas de Aurora Synapse mediante Mise
+# Reutiliza el estándar común: dev, build, release, publish
+
+[tasks.dev]
+raw_args = true
+description = "Ejecutar Aurora Synapse en desarrollo (Tauri v2 + Vite)"
+file = "scripts/mise-task.ts"
+
+[tasks.build]
+raw_args = true
+description = "Compilar frontend y binario de escritorio sin generar instalador"
+file = "scripts/mise-task.ts"
+
+[tasks.check]
+raw_args = true
+description = "Verificar tipos de TypeScript y codigo Rust sin emitir artefactos de distribucion"
+file = "scripts/mise-task.ts"
+
+[tasks.test]
+raw_args = true
+description = "Ejecutar las pruebas unitarias del modulo Rust del puente MCP"
+file = "scripts/mise-task.ts"
+
+[tasks.release]
+raw_args = true
+description = "Generar distribuibles locales (Inno Setup .exe, APK y SHA256SUMS.txt) sin publicar"
+file = "scripts/mise-task.ts"
+
+[tasks.publish]
+raw_args = true
+description = "Publicar release en GitHub y sincronizar ficha en Aurora (requiere autorizacion explicita; --plan y --check sin escritura)"
+file = "scripts/mise-task.ts"
