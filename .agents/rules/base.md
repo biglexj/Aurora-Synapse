@@ -2,7 +2,7 @@
 trigger: always_on
 ---
 
-# Instrucciones del proyecto
+# Instrucciones del proyecto — Aurora Synapse
 
 ## Documentación Core — entrada compartida
 
@@ -17,45 +17,24 @@ En estos criterios comunes, aplicar las bases vigentes enlazadas en lugar de cop
 
 Entrada única de instrucciones: `.agents/rules/base.md`.
 
-Consultar [Docs](../../../Docs/README.md) como fuente compartida. Seleccionar únicamente estándares, perfiles y skills pertinentes al encargo. Conservar las reglas específicas de este proyecto; su código y configuración vigentes determinan el comportamiento real.
+## Módulos de Core aplicables a este proyecto
 
-# Agent Instructions - Aurora Synapse
+- **Protocolo y arquitectura**: [Aurora Synapse en Core](../../../Docs/features/aurora-synapse/README.md) · [contratos de payload](../../../Docs/features/aurora-synapse/payload-contracts.md) · [registro de puertos y red](../../../Docs/features/aurora-synapse/port-and-network-registry.md) · [despacho de instancia única](../../../Docs/features/aurora-synapse/single-instance-dispatch.md) · [especificación de URI](../../../Docs/features/aurora-synapse/uri-specification.md) · [puente MCP](../../../Docs/features/aurora-synapse/bridge-as-mcp-server.md) · [entrada para agentes y CLI](../../../Docs/features/aurora-synapse/agent-and-cli-gateway.md).
+- **Comandos**: [comandos mediante Mise](../../../Docs/global/architecture/mise-command-standard.md) · [scripts y alias](../../../Docs/global/architecture/command-scripts-standard.md) · [organización de carpetas](../../../Docs/global/architecture/project-structure.md).
+- **Interfaz**: [sistema de diseño](../../../Docs/global/design/design_system.md) · [textos de interfaz](../../../Docs/global/design/interface-writing.md) · [estándares de escritorio](../../../Docs/types/desktop/README.md) · [base de React](../../../Docs/stacks/react/react-baseline.md) · [instalador de Windows](../../../Docs/platforms/windows/installer.md) · [bloqueo de instancia única](../../../Docs/platforms/windows/single_instance_lock.md).
+- **Agentes**: [modelos de IA](../../../Docs/features/ai-models/README.md) · [estilo de comunicación (Scientific Elegant)](../../../Docs/global/agents/communication-style.md).
+- **Documentación**: [reglas de trabajo del agente](../../../Docs/global/documentation/agent-working-rules.md) · [gobernanza de la documentación](../../../Docs/global/documentation/documentation-governance.md).
+- **Publicación**: [base de lanzamientos](../../../Docs/global/releases/release-baseline.md) · [protocolo de lanzamiento y actualización](../../../Docs/global/releases/protocolo_lanzamiento_actualizacion.md) · [mensaje de lanzamiento web](../../../Docs/global/releases/web-release-message-standard.md).
+- **Soporte**: [soporte oficial y diálogo «Acerca de»](../../../Docs/features/official-support/official-support-baseline.md).
 
-## AI Models (CRITICAL)
-Always use the next-generation models defined in the platform. Do NOT use legacy models like Gemini 1.5 or old GPT versions unless explicitly requested for legacy testing.
+Los enlaces a Core sustituyen a las copias anteriores de estas reglas: no se reescriben aquí estilos de comunicación, enlaces de donación y «Acerca de», normas de ROADMAP, notas de lanzamiento, normas de `.agents/rules/`, commits de resguardo, flujo de desarrollo, catálogo genérico de modelos de IA ni política de ramas.
 
-**Current Recommended Models (2026):**
-- `gemini-3.5-flash` (Default for general chat/intelligence / Smart)
-- `gemini-3.1-flash-lite` (Fast responses / G-3.1 Flash)
-- `gemini-3.1-pro-preview` (Deep reasoning / Complex tasks / G-3.1 Pro)
+## Contratos locales de Aurora Synapse
 
-## Project License & Author
-- **License**: GNU GPL v2.0 (`GPL-2.0`)
-- **Author**: biglexj (2026)
-
-## Estructura & Lenguaje de Diseño
-- **Material 3 Expressive**: Toda la interfaz debe utilizar el lenguaje visual moderno con transiciones fluidas, elevaciones tonales y soporte modo oscuro nativo.
-- **Grid de Aplicaciones**: 2 columnas en pantallas móviles / smartphones (`< 640px`) y 4 columnas en pantallas de escritorio / PC (`>= 640px`).
-- **Tono Científico y Elegante**: Expresarse con estructura y elegancia científica (*Dr. Stone* / Dr. Xeno).
-
-## Reglas locales integradas desde .agents/rules/base.md
-
-# Aurora Synapse — Agent Instructions
-
-## Identity & Mission
-**Aurora Synapse** es el orquestador global y puente universal multiplataforma del ecosistema **biglexj**.
-Permite la recepción universal de enlaces, medios y archivos desde cualquier dispositivo (Android Share Sheet, navegador web, PC) y su enrutamiento inteligente determinista hacia las aplicaciones satélite del ecosistema (**Gallery-DL GUI**, **Luna Fetch**, **Prisma**, **Ely-Tesia**, **WinTTS**, **LyraFlow**).
-
-## Stack Tecnológico
-- **Core Framework**: Tauri v2 + Rust
-- **Frontend**: React 19 + TypeScript + Vite + Bun
-- **Estilos**: Vanilla CSS con Sistema de Diseño **Material 3 Expressive** (paleta tonal, micro-animaciones, contenedores elevados, responsive grid 2 columnas en móviles / 4 columnas en desktop).
-- **Red & Protocolos**:
-  - `49295`: Servidor HTTP LAN de Aurora Synapse.
-  - `49289`: Beacon UDP para descubrimiento Zero-Config de dispositivos en red local.
-  - `49286`: Named Pipe / Socket IPC loopback local (`\\.\pipe\aurora-synapse-ipc`).
-
-## Reglas del Ecosistema
-- **Licencia**: GNU GPL v2.0 (`GPL-2.0`)
-- **Autor**: biglexj (2026)
-- **Documentación Core**: `D:\Proyectos\biglexj\Docs` (Consultar `features/aurora-synapse/` y `global/design/`).
+- **Identidad**: orquestador global y puente universal multiplataforma del ecosistema biglexj. Recibe enlaces, medios y archivos desde cualquier dispositivo y los enruta de forma determinista a las aplicaciones satélite.
+- **Stack**: Tauri v2 + Rust; React 19 + TypeScript + Vite + Bun; CSS propio con paleta tonal, micro-animaciones y contenedores elevados, conforme al [sistema de diseño de Core](../../../Docs/global/design/design_system.md).
+- **Interfaz**: rejilla adaptativa de 2 a 6 columnas (cambio en 680, 960, 1280 y 1560 px), bandeja del sistema, persistencia de ventana e inicio automático con Windows.
+- **Puertos y servicios**: `49295` servidor HTTP LAN, `49289` beacon UDP de descubrimiento, `49296` puente MCP en loopback. `49286` sigue reservado y sin implementar en este repositorio.
+- **Detalle operativo**: [docs/architecture.md](../../docs/architecture.md) (arquitectura local, mapa del repositorio y configuración). Documentación funcional en [docs/mcp/](../../docs/mcp/) y procesos en [process/](../../process/).
+- **Comandos**: `mise dev | build | check | test | release | publish`. `release` prepara artefactos y no publica; `publish` es explícito y exige autorización.
+- **Licencia y autoría**: GNU GPL v2.0 (`GPL-2.0`), autor biglexj (2026). Los enlaces oficiales de donación, GitHub y el contenido del diálogo «Acerca de» son los de [la base de soporte oficial](../../../Docs/features/official-support/official-support-baseline.md); no se redefinen aquí.

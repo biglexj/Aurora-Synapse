@@ -145,13 +145,17 @@ Aurora Synapse implementa la interfaz universal de tareas mediante Mise:
 |---|---|
 | `mise dev` | Ejecutar en modo desarrollo (`tauri dev`). |
 | `mise build` | Compilar frontend y binario de escritorio sin generar instaladores. |
+| `mise check` | Verificar tipos de TypeScript y el código Rust sin emitir artefactos de distribución. |
+| `mise test` | Ejecutar las pruebas unitarias del módulo Rust del puente MCP. |
 | `mise release` | Generar distribuibles locales en `release/` (Setup `.exe`, APK y `SHA256SUMS.txt`) sin publicar. |
-| `mise publish` | Publicar en GitHub Releases y sincronizar ficha en Aurora (`--plan` y `--check` sin escritura). |
+| `mise publish` | Publicar en GitHub Releases y sincronizar ficha en Aurora. Es explícito y exige autorización: no se ejecuta como efecto secundario de `build` ni de `release` (`--plan` y `--check` sin escritura). |
 
 Opciones de inspección y comprobación:
-- `--plan`: Muestra el comando y las operaciones planificadas sin ejecutar procesos ni modificar el sistema (`mise dev --plan`, `mise release --plan`, `mise publish --plan`).
+- `--plan`: Muestra el comando y las operaciones planificadas sin ejecutar procesos ni modificar el sistema (`mise dev --plan`, `mise build --plan`, `mise check --plan`, `mise test --plan`, `mise release --plan`, `mise publish --plan`).
 - `--check`: (para `publish`) Verifica el estado del repositorio, tags, notas y la presencia e integridad de los artefactos en `release/` sin publicar nada (`mise publish --check`).
 - Canal explícito `github`: `mise publish github` (omite la sincronización con la web de Aurora).
+
+La arquitectura local (stack, puertos, mapa del repositorio y decisiones de producto) está en [`docs/architecture.md`](docs/architecture.md). El protocolo Aurora Synapse y sus contratos (puertos, payloads, URI y puente MCP) tienen su fuente canónica en la documentación Core del ecosistema, no en este repositorio.
 
 ### Flujos directos auxiliares
 

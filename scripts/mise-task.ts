@@ -28,11 +28,13 @@ const appVersion = pkg.version;
 const appName = "Aurora Synapse";
 const repository = "biglexj/Aurora-Synapse";
 
-const help = `Aurora Synapse: mise <dev|build|release|publish> [opciones]
+const help = `Aurora Synapse: mise <dev|build|check|test|release|publish> [opciones]
   dev      Ejecutar en modo desarrollo (Tauri v2 + Vite).
   build    Compilar frontend y binario de escritorio sin generar instalador.
+  check    Verificar tipos de TypeScript y el codigo Rust sin emitir artefactos de distribucion.
+  test     Ejecutar las pruebas unitarias del modulo Rust del puente MCP.
   release  Generar instalador Inno Setup, APK y SHA256SUMS.txt en release/.
-  publish  [github|all] Publicar en GitHub y sincronizar ficha en Aurora.
+  publish  [github|all] Publicar en GitHub y sincronizar ficha en Aurora (requiere autorizacion explicita).
   --plan   Mostrar los comandos o el plan sin ejecutar acciones ni escribir.
   --check  Para publish: verificar requisitos locales y remotos sin escribir.
 
@@ -40,13 +42,26 @@ Ejemplos:
   mise dev
   mise dev --plan
   mise build --plan
+  mise check --plan
+  mise test --plan
   mise release --plan
   mise publish --plan
   mise publish github --plan
   mise publish --check
 `;
 
+// Una opcion que no se implementa no se anuncia, y una opcion desconocida no
+// se ignora en silencio: falla antes de ejecutar nada.
+function assertKnownOptions(args: string[], allowed: string[]): void {
+    for (const arg of args) {
+        if (arg.startsWith("-") && !allowed.includes(arg)) {
+            throw new Error(`Opcion desconocida: ${arg}. Opciones admitidas: ${allowed.join(", ")}.`);
+        }
+    }
+}
+
 async function handlePublish(args: string[]): Promise<number> {
+    assertKnownOptions(args, ["--plan", "--check"]);
     const isPlan = args.includes("--plan");
     const isCheck = args.includes("--check");
     const positional = args.filter((arg) => !arg.startsWith("-"));
@@ -138,6 +153,12 @@ export async function main(args = Bun.argv.slice(2)): Promise<number> {
         return handlePublish(rest);
     }
 
+    assertKnownOptions(rest, ["--plan"]);
+    const positional = rest.filter((arg) => !arg.startsWith("-"));
+    if (positional.length > 0) {
+        throw new Error(`La tarea "${action}" no admite argumentos posicionales: ${positional.join(", ")}.`);
+    }
+
     const isPlan = rest.includes("--plan");
 
     if (action === "dev") {
@@ -165,9 +186,40 @@ export async function main(args = Bun.argv.slice(2)): Promise<number> {
         return (await child.exited) ?? 0;
     }
 
+    if (action === "check") {
+        const cmdTypes = ["bun", "run", "check"];
+        const cmdRust = ["bun", "run", "check:rust"];
+        console.log(`check ${appName}\nDirectorio: ${root}\nComando: ${cmdTypes.join(" ")} && ${cmdRust.join(" ")}`);
+        if (isPlan) return 0;
+
+        console.log("\n==> [1/2] Verificando tipos de TypeScript (tsc --noEmit)...");
+        const resTypes = runCmdSync(cmdTypes);
+        if (resTypes.code !== 0) {
+            console.error(resTypes.stderr || resTypes.stdout);
+            throw new Error(`Fallo la verificacion de tipos (codigo ${resTypes.code})`);
+        }
+        console.log("==> [2/2] Verificando el codigo Rust (cargo check)...");
+        const resRust = runCmdSync(cmdRust);
+        if (resRust.code !== 0) {
+            console.error(resRust.stderr || resRust.stdout);
+            throw new Error(`Fallo la verificacion de Rust (codigo ${resRust.code})`);
+        }
+        console.log("Verificacion completa.");
+        return 0;
+    }
+
+    if (action === "test") {
+        const cmd = ["bun", "run", "test"];
+        console.log(`test ${appName}\nDirectorio: ${root}\nComando: ${cmd.join(" ")}`);
+        if (isPlan) return 0;
+
+        const child = Bun.spawn(cmd, { cwd: root, stdin: "inherit", stdout: "inherit", stderr: "inherit" });
+        return (await child.exited) ?? 0;
+    }
+
     if (action === "release") {
         const psArgs = [
-            "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+            "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
             "-File", "./scripts/build/build-release.ps1", "-LocalOnly",
         ];
         console.log(`release ${appName}\nDirectorio: ${root}\nComando: ${psArgs.join(" ")}`);
@@ -177,7 +229,7 @@ export async function main(args = Bun.argv.slice(2)): Promise<number> {
         return (await child.exited) ?? 0;
     }
 
-    throw new Error(`Acción desconocida: ${action}. Usa mise dev, mise build, mise release o mise publish.`);
+    throw new Error(`Acción desconocida: ${action}. Usa mise dev, mise build, mise check, mise test, mise release o mise publish.`);
 }
 
 if (import.meta.main) {
