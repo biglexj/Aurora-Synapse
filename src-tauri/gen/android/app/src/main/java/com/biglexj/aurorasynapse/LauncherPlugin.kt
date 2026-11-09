@@ -8,6 +8,13 @@ import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.Plugin
+import app.tauri.plugin.JSObject
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+
+@InvokeArg
+class GalleryCredentialArgs { var token: String? = null }
 
 @InvokeArg
 class LaunchAppArgs {
@@ -18,6 +25,41 @@ class LaunchAppArgs {
 
 @TauriPlugin
 class LauncherPlugin(private val activity: Activity) : Plugin(activity) {
+
+    @Command
+    fun scanPcQr(invoke: Invoke) {
+        activity.runOnUiThread {
+            val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).enableAutoZoom().build()
+            GmsBarcodeScanning.getClient(activity, options).startScan()
+                .addOnSuccessListener { barcode ->
+                    val value = barcode.rawValue
+                    if (value == null) invoke.reject("QR vacío")
+                    else invoke.resolve(JSObject().apply { put("qr", value) })
+                }
+                .addOnCanceledListener { invoke.reject("Escaneo cancelado") }
+                .addOnFailureListener { invoke.reject("No se pudo abrir el escáner QR. Comprueba Google Play Services y vuelve a intentarlo.") }
+        }
+    }
+
+    @Command
+    fun peerCredential(invoke: Invoke) {
+        try {
+            val token = invoke.parseArgs(GalleryCredentialArgs::class.java).token
+            val store = GalleryCredentialStore(activity, "peer")
+            if (token != null) { store.save(token); invoke.resolve(JSObject().apply { put("token", "") }) }
+            else invoke.resolve(JSObject().apply { put("token", store.load()) })
+        } catch (_: Exception) { invoke.reject("Escanea el QR del PC para conectar") }
+    }
+
+    @Command
+    fun galleryCredential(invoke: Invoke) {
+        try {
+            val token = invoke.parseArgs(GalleryCredentialArgs::class.java).token
+            val store = GalleryCredentialStore(activity)
+            if (token != null) { store.save(token); invoke.resolve(JSObject().apply { put("token", "") }) }
+            else invoke.resolve(JSObject().apply { put("token", store.load()) })
+        } catch (_: Exception) { invoke.reject("Super Galería requiere conexión por código") }
+    }
 
     @Command
     fun launchApp(invoke: Invoke) {

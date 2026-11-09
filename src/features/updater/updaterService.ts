@@ -1,7 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { UpdateCheckResult } from "./types";
 
-export const APP_CURRENT_VERSION = "1.0.0";
+/**
+ * Versión mostrada en Acerca de y usada como base para comparar con la última
+ * release publicada. Debe coincidir con la versión de package.json, que es la
+ * fuente canónica (la consumen tauri.conf.json, Cargo.toml y el empaquetador).
+ */
+export const APP_CURRENT_VERSION = "1.0.1";
 
 /**
  * Sanitiza canónicamente el markdown del body de la release para su presentación en UI

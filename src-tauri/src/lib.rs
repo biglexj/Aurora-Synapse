@@ -1,10 +1,49 @@
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
+pub mod mcp;
+mod peer;
+
+#[tauri::command]
+fn create_pc_invitation() -> Result<serde_json::Value, String> { peer::create() }
+#[tauri::command]
+fn cancel_pc_invitation() { peer::cancel(); }
+#[tauri::command]
+fn pc_pairing_status() -> serde_json::Value { peer::status() }
+#[tauri::command]
+async fn scan_pc_qr(#[allow(unused)] app: tauri::AppHandle) -> Result<String, String> {
+    #[cfg(target_os = "android")]
+    {
+        let launcher = app.try_state::<tauri::plugin::PluginHandle<tauri::Wry>>().ok_or("Escáner no disponible")?;
+        let result = launcher.run_mobile_plugin_async::<serde_json::Value>("scanPcQr", serde_json::json!({})).await.map_err(|_| "No se pudo escanear el QR; comprueba Google Play Services o vuelve a intentarlo")?;
+        return result["qr"].as_str().map(str::to_owned).ok_or("QR vacío".into());
+    }
+    #[cfg(not(target_os = "android"))]
+    Err("Escanea el QR desde Synapse del teléfono".into())
+}
+#[tauri::command]
+async fn connect_pc_from_qr(#[allow(unused)] qr: String) -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "android")]
+    { return peer::connect(&qr).await; }
+    #[cfg(not(target_os = "android"))]
+    Err("La conexión por QR se inicia desde el teléfono".into())
+}
+#[tauri::command]
+async fn paired_pc_status() -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "android")]
+    { return peer::connected_status().await; }
+    #[cfg(not(target_os = "android"))]
+    Err("Consulta disponible en el teléfono".into())
+}
+
 #[cfg(desktop)]
 use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(desktop)]
+use std::sync::Arc;
+#[cfg(desktop)]
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
+#[cfg(desktop)]
+use tauri::image::Image;
 #[cfg(desktop)]
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 #[cfg(desktop)]
@@ -60,13 +99,21 @@ pub struct SynapseSettings {
 
 #[tauri::command]
 fn get_registered_apps() -> Vec<AppTarget> {
+    app_catalog()
+}
+
+/// Catálogo completo de aplicaciones del ecosistema.
+///
+/// La lógica vive fuera del comando Tauri para que el puente MCP pueda
+/// reutilizarla sin depender de la interfaz.
+pub(crate) fn app_catalog() -> Vec<AppTarget> {
     vec![
         // ─── APLICACIONES NATIVAS (DESKTOP & MOBILE) ───
         AppTarget {
             id: "gallerydl".into(),
             name: "Gallery-DL GUI".into(),
             category: "Multimedia".into(),
-            description: "Descargas masivas desde DeviantArt, Pixiv, ArtStation, Danbooru e imágenes.".into(),
+            description: "Todo tu arte favorito, a un clic.".into(),
             icon_path: "/assets/icons/gallery-dl-gui/icon.webp".into(),
             icon_emoji: Some("🖼️".into()),
             accent_color: "#38bdf8".into(),
@@ -93,7 +140,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             id: "luna".into(),
             name: "Luna Fetch".into(),
             category: "Multimedia".into(),
-            description: "Descarga de medios desde YouTube, TikTok, Instagram, Twitter/X y SoundCloud.".into(),
+            description: "Descarga en un instante, en máxima calidad.".into(),
             icon_path: "/assets/icons/luna-fetch/icon.webp".into(),
             icon_emoji: Some("🌙".into()),
             accent_color: "#818cf8".into(),
@@ -120,7 +167,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             id: "prisma".into(),
             name: "Prisma".into(),
             category: "Multimedia".into(),
-            description: "Reproductor multimedia de alta fidelidad, sincronización de letras y Handoff.".into(),
+            description: "Tus fotos, vídeos y audios, con la máxima calidad y control total.".into(),
             icon_path: "/assets/icons/prisma/icon.webp".into(),
             icon_emoji: Some("✨".into()),
             accent_color: "#60a5fa".into(),
@@ -142,10 +189,32 @@ fn get_registered_apps() -> Vec<AppTarget> {
             package_name: None,
         },
         AppTarget {
+            id: "prisma-upscaler".into(),
+            name: "Prisma Upscaler".into(),
+            category: "Multimedia".into(),
+            description: "Cada imagen, en alta resolución.".into(),
+            icon_path: "/assets/icons/prisma-upscaler/icon.webp".into(),
+            icon_emoji: Some("🔍".into()),
+            accent_color: "#22d3ee".into(),
+            uri_scheme: "prisma-upscaler://upscale?path=".into(),
+            web_url: Some("https://github.com/biglexj/Prisma-Upscaler".into()),
+            port: 8085,
+            supported_domains: vec![
+                ".png".into(),
+                ".jpg".into(),
+                ".jpeg".into(),
+                ".webp".into(),
+            ],
+            is_web_app: false,
+            status: "ACTUALIZADA".into(),
+            platforms: vec!["windows".into(), "linux".into()],
+            package_name: None,
+        },
+        AppTarget {
             id: "elytesia".into(),
             name: "Ely-Tesia".into(),
             category: "Multimedia".into(),
-            description: "Visualizador interactivo de partituras y sintetizador para archivos MIDI.".into(),
+            description: "Tus melodías, a la vista y al tacto.".into(),
             icon_path: "/assets/icons/ely-tesia/icon.webp".into(),
             icon_emoji: Some("🎹".into()),
             accent_color: "#f472b6".into(),
@@ -167,7 +236,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             id: "wintts".into(),
             name: "WinTTS".into(),
             category: "IA".into(),
-            description: "Sintetizador neuronal offline para locución de textos y artículos a voz WAV.".into(),
+            description: "Tu texto, narrado en tu pantalla.".into(),
             icon_path: "/assets/icons/wintts/icon.webp".into(),
             icon_emoji: Some("🗣️".into()),
             accent_color: "#34d399".into(),
@@ -188,7 +257,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             id: "lyraflow".into(),
             name: "LyraFlow".into(),
             category: "IA".into(),
-            description: "Dictado por voz en tiempo real, transcripción de audios y subtitulación IA.".into(),
+            description: "Habla. Ya está escrito.".into(),
             icon_path: "/assets/icons/lyraflow/icon.webp".into(),
             icon_emoji: Some("🎙️".into()),
             accent_color: "#fbbf24".into(),
@@ -207,13 +276,13 @@ fn get_registered_apps() -> Vec<AppTarget> {
             id: "davinciflow".into(),
             name: "DaVinci Flow".into(),
             category: "Multimedia".into(),
-            description: "Automatización de post-producción, marcadores de timeline y exportación.".into(),
+            description: "Tus subtítulos, solos en la línea de tiempo.".into(),
             icon_path: "/assets/icons/davinci-flow/icon.webp".into(),
             icon_emoji: Some("🎬".into()),
             accent_color: "#a78bfa".into(),
             uri_scheme: "davinciflow://timeline".into(),
             web_url: Some("https://www.biglexj.com/apps/davinciflow".into()),
-            port: 49294,
+            port: 49288,
             supported_domains: vec![
                 ".drp".into(),
             ],
@@ -226,7 +295,7 @@ fn get_registered_apps() -> Vec<AppTarget> {
             id: "mouzi".into(),
             name: "MouziFlow".into(),
             category: "Utilidades".into(),
-            description: "Clasificación automática de descargas, renombrado inteligente y orden de biblioteca.".into(),
+            description: "Tus archivos, siempre en su sitio.".into(),
             icon_path: "/assets/icons/mouziflow/icon.webp".into(),
             icon_emoji: Some("🗂️".into()),
             accent_color: "#a855f7".into(),
@@ -240,38 +309,55 @@ fn get_registered_apps() -> Vec<AppTarget> {
             package_name: None,
         },
         AppTarget {
+            id: "ely-intelligence".into(),
+            name: "Ely Intelligence".into(),
+            category: "IA".into(),
+            description: "Háblale. Él entiende.".into(),
+            icon_path: "/assets/icons/ely-intelligence/icon.webp".into(),
+            icon_emoji: Some("🤖".into()),
+            accent_color: "#10b981".into(),
+            uri_scheme: "ely://".into(),
+            web_url: Some("https://www.biglexj.com/desarrollo".into()),
+            port: 7090,
+            supported_domains: vec![],
+            is_web_app: false,
+            status: "INTERNO".into(),
+            platforms: vec!["windows".into(), "linux".into(), "macos".into()],
+            package_name: None,
+        },
+        AppTarget {
+            id: "nubix".into(),
+            name: "Nubix".into(),
+            category: "Utilidades".into(),
+            description: "Compara con Drive y sube solo lo que has revisado.".into(),
+            icon_path: "/assets/icons/nubix/icon.webp".into(),
+            icon_emoji: Some("☁️".into()),
+            accent_color: "#f59e0b".into(),
+            uri_scheme: "nubix://sync".into(),
+            web_url: Some("https://www.biglexj.com/desarrollo".into()),
+            port: 0,
+            supported_domains: vec![],
+            is_web_app: false,
+            status: "PROXIMAMENTE".into(),
+            platforms: vec!["windows".into()],
+            package_name: None,
+        },
+        AppTarget {
             id: "lienzo".into(),
             name: "Super Galería".into(),
             category: "Multimedia".into(),
-            description: "Visor táctil de imágenes y videos sincronizado con la red local de alta fidelidad.".into(),
+            description: "Visor, editor y reproductor multimedia todo en uno para Android.".into(),
             icon_path: "/assets/icons/lienzo-gallery/icon.webp".into(),
             icon_emoji: Some("🌄".into()),
             accent_color: "#2dd4bf".into(),
             uri_scheme: "supergallery://open".into(),
             web_url: Some("https://www.biglexj.com/apps/lienzo".into()),
-            port: 49294,
+            port: 49288,
             supported_domains: vec![],
             is_web_app: false,
             status: "ACTUALIZADA".into(),
             platforms: vec!["android".into()],
             package_name: Some("com.biglexj.lienzo".into()),
-        },
-        AppTarget {
-            id: "codex".into(),
-            name: "codex-go".into(),
-            category: "Desarrollo".into(),
-            description: "Generador de código, herramientas de automatización y agentes de consola.".into(),
-            icon_path: "/assets/icons/codex-go/icon.webp".into(),
-            icon_emoji: Some("⚡".into()),
-            accent_color: "#3b82f6".into(),
-            uri_scheme: "codex://run".into(),
-            web_url: Some("https://www.biglexj.com/apps/codex".into()),
-            port: 7090,
-            supported_domains: vec![],
-            is_web_app: false,
-            status: "EXPERIMENTAL".into(),
-            platforms: vec!["windows".into(), "linux".into()],
-            package_name: None,
         },
         AppTarget {
             id: "pixistore".into(),
@@ -292,6 +378,57 @@ fn get_registered_apps() -> Vec<AppTarget> {
         },
 
         // ─── HERRAMIENTAS & APPS WEB (BIGLEXJ.COM) ───
+        AppTarget {
+            id: "aurora-web".into(),
+            name: "Aurora".into(),
+            category: "Web".into(),
+            description: "Sitio web del ecosistema: contenido multimedia, música, comunidad y herramientas de creación.".into(),
+            icon_path: "/assets/icons/aurora/icon.webp".into(),
+            icon_emoji: Some("🌌".into()),
+            accent_color: "#6366f1".into(),
+            uri_scheme: "https://www.biglexj.com/".into(),
+            web_url: Some("https://www.biglexj.com/".into()),
+            port: 443,
+            supported_domains: vec!["biglexj.com".into()],
+            is_web_app: true,
+            status: "ACTUALIZADA".into(),
+            platforms: vec!["web".into(), "windows".into(), "android".into(), "linux".into(), "macos".into()],
+            package_name: None,
+        },
+        AppTarget {
+            id: "aurora-codex-provider".into(),
+            name: "Aurora Codex Provider".into(),
+            category: "Desarrollo".into(),
+            description: "Proveedor personal de imágenes para Aurora basado en Codex CLI, sin claves de API externas.".into(),
+            icon_path: "".into(),
+            icon_emoji: Some("🖌️".into()),
+            accent_color: "#3b82f6".into(),
+            uri_scheme: "http://127.0.0.1:54799/".into(),
+            web_url: Some("http://127.0.0.1:54799/".into()),
+            port: 54799,
+            supported_domains: vec![],
+            is_web_app: true,
+            status: "ACTUALIZADA".into(),
+            platforms: vec!["windows".into(), "linux".into()],
+            package_name: None,
+        },
+        AppTarget {
+            id: "aurora-gemini-provider".into(),
+            name: "Aurora Gemini Provider".into(),
+            category: "Desarrollo".into(),
+            description: "Proveedor de imágenes para Aurora impulsado por Gemini / Antigravity CLI, sin claves externas.".into(),
+            icon_path: "".into(),
+            icon_emoji: Some("🖌️".into()),
+            accent_color: "#8b5cf6".into(),
+            uri_scheme: "http://127.0.0.1:54800/".into(),
+            web_url: Some("http://127.0.0.1:54800/".into()),
+            port: 54800,
+            supported_domains: vec![],
+            is_web_app: true,
+            status: "ACTUALIZADA".into(),
+            platforms: vec!["windows".into(), "linux".into()],
+            package_name: None,
+        },
         AppTarget {
             id: "elychat".into(),
             name: "Ely Chat".into(),
@@ -518,6 +655,11 @@ fn get_registered_apps() -> Vec<AppTarget> {
 
 #[tauri::command]
 fn classify_intent(input: &str) -> ClassificationResult {
+    classify_intent_impl(input)
+}
+
+/// Clasificador de intenciones, reutilizable por el puente MCP.
+pub(crate) fn classify_intent_impl(input: &str) -> ClassificationResult {
     let lower = input.to_lowercase();
     let trimmed = lower.trim();
 
@@ -601,7 +743,26 @@ fn classify_intent(input: &str) -> ClassificationResult {
         };
     }
 
-    // 7. Default fallback
+    // 7. Super-resolución de imágenes -> Prisma Upscaler
+    if (trimmed.contains("escala")
+        || trimmed.contains("escalad")
+        || trimmed.contains("upscal")
+        || trimmed.contains("super-resolucion")
+        || trimmed.contains("superresolucion")
+        || trimmed.contains("realesrgan"))
+        && (trimmed.ends_with(".png")
+            || trimmed.ends_with(".jpg")
+            || trimmed.ends_with(".jpeg")
+            || trimmed.ends_with(".webp"))
+    {
+        return ClassificationResult {
+            recommended_app_id: "prisma-upscaler".into(),
+            reason: "Super-resolución de imagen detectada (2x, 4x, modelo neuronal)".into(),
+            detected_type: "image_upscale".into(),
+        };
+    }
+
+    // 8. Default fallback
     if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
         ClassificationResult {
             recommended_app_id: "gallerydl".into(),
@@ -617,75 +778,115 @@ fn classify_intent(input: &str) -> ClassificationResult {
     }
 }
 
-#[tauri::command]
-fn get_paired_devices(is_mobile: Option<bool>) -> Vec<DeviceNode> {
-    let on_mobile = is_mobile.unwrap_or(cfg!(target_os = "android") || cfg!(target_os = "ios"));
-    vec![
-        DeviceNode {
-            id: "local_pc".into(),
-            name: if on_mobile { "PC de Escritorio (Windows)".into() } else { "Esta Computadora (PC Windows)".into() },
-            device_type: "desktop".into(),
-            ip: "192.168.1.121".into(),
-            is_local: !on_mobile,
-            os: "windows".into(),
-        },
-        DeviceNode {
-            id: "android_phone".into(),
-            name: if on_mobile { "Este Teléfono (Android)".into() } else { "Teléfono Móvil (Android)".into() },
-            device_type: "mobile".into(),
-            ip: "192.168.1.105".into(),
-            is_local: on_mobile,
-            os: "android".into(),
-        },
-    ]
+fn is_local_machine(device: &mcp::devices::Device) -> bool {
+    if device.address == "127.0.0.1" || device.address == "localhost" || device.address == "::1" {
+        return true;
+    }
+    if let Ok(comp) = std::env::var("COMPUTERNAME") {
+        if !comp.trim().is_empty() && device.device_name.eq_ignore_ascii_case(comp.trim()) {
+            return true;
+        }
+    }
+    if let Ok(hostname) = std::env::var("HOSTNAME") {
+        if !hostname.trim().is_empty() && device.device_name.eq_ignore_ascii_case(hostname.trim()) {
+            return true;
+        }
+    }
+    if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0") {
+        for target in ["1.1.1.1:80", "8.8.8.8:80", "192.168.1.1:80", "10.0.0.1:80"] {
+            if socket.connect(target).is_ok() {
+                if let Ok(addr) = socket.local_addr() {
+                    if addr.ip().to_string() == device.address {
+                        return true;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    false
 }
 
-/// Envía contenido desde el teléfono hacia la aplicación o servidor central de Aurora Synapse en la PC
+#[tauri::command]
+fn get_paired_devices(is_mobile: Option<bool>) -> Vec<DeviceNode> {
+    let mobile = is_mobile.unwrap_or(cfg!(target_os = "android") || cfg!(target_os = "ios"));
+    let mut devices = vec![DeviceNode {
+        id: if mobile { "android_phone" } else { "local_pc" }.into(),
+        name: if mobile { "Este teléfono" } else { "Este equipo" }.into(),
+        device_type: if mobile { "mobile" } else { "desktop" }.into(),
+        ip: "127.0.0.1".into(),
+        is_local: true,
+        os: if mobile { "android" } else { "windows" }.into(),
+    }];
+
+    for device in mcp::devices::list() {
+        if is_local_machine(&device) {
+            // En escritorio y móvil: no registrar balizas de la propia máquina como dispositivos remotos
+            continue;
+        }
+
+        devices.push(DeviceNode {
+            id: device.device_id,
+            name: format!("{} ({})", device.device_name, device.target_app),
+            device_type: device.device_type,
+            ip: device.address,
+            is_local: false,
+            os: device.os.to_lowercase(),
+        });
+    }
+
+    devices
+}
+
+#[tauri::command]
+async fn pair_gallery(address: String, code: String) -> Result<serde_json::Value, String> {
+    mcp::gallery::pair(&address, &code).await
+}
+
+#[tauri::command]
+async fn gallery_connection() -> Result<serde_json::Value, String> {
+    mcp::gallery::status().await
+}
+
+#[tauri::command]
+fn gallery_devices() -> Vec<mcp::devices::Device> {
+    mcp::devices::list().into_iter().filter(|device| device.target_app == "supergallery").collect()
+}
+
+/// Estado real del puente MCP, de sus aplicaciones y de los agentes conectados.
+///
+/// El comando existe también en Android: allí el puente no arranca y la
+/// respuesta es explícita (`running: false`, `transport: "none"`), nunca un
+/// dato simulado.
+#[tauri::command]
+async fn mcp_server_status() -> mcp::status::McpServerStatus {
+    mcp::status::status().await
+}
+
+/// Envía una orden desde el teléfono hacia el PC vinculado.
+///
+/// La única ruta autorizada es el canal emparejado. Antes se intentaban
+/// endpoints LAN heredados sin credencial y con un contrato que las apps no
+/// implementan: además de ejecutar sin autorización, podían repetir la orden.
 #[allow(dead_code)]
 async fn dispatch_to_pc(
     target_app: &AppTarget,
     content: &str,
     pc_ip_opt: Option<&str>,
 ) -> Result<String, String> {
-    let pc_ip = pc_ip_opt.filter(|s| !s.trim().is_empty()).unwrap_or("192.168.1.121");
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(4))
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    // 1. Intentar endpoint directo de la aplicación en la PC (ej. Gallery-DL :18274, Luna :49288)
-    let app_endpoint = format!("http://{}:{}/synapse", pc_ip, target_app.port);
-    let payload = serde_json::json!({
-        "action": if content.trim().is_empty() { "focus" } else { "download" },
-        "url": content,
-        "source": "AuroraSynapseAndroid",
-        "timestamp": 20260910
-    });
-
-    match client.post(&app_endpoint).json(&payload).send().await {
-        Ok(resp) if resp.status().is_success() => {
-            return Ok(format!("Enviado exitosamente a {} en la PC ({})", target_app.name, pc_ip));
-        }
-        _ => {
-            // 2. Fallback: Servidor central de Aurora Synapse en la PC (:49295)
-            let synapse_endpoint = format!("http://{}:49295/dispatch", pc_ip);
-            let synapse_payload = serde_json::json!({
-                "app_id": target_app.id,
-                "content": content,
-                "device": "android_phone"
+    #[cfg(target_os = "android")]
+    {
+        return peer::dispatch(&target_app.id, content, pc_ip_opt.unwrap_or(""))
+            .await?
+            .ok_or_else(|| {
+                "No hay un PC vinculado. En Ajustes → Conexiones, escanea el QR del PC para enviarle órdenes."
+                    .to_string()
             });
-            match client.post(&synapse_endpoint).json(&synapse_payload).send().await {
-                Ok(resp) if resp.status().is_success() => {
-                    return Ok(format!("Despachado a través de Aurora Synapse en la PC ({})", pc_ip));
-                }
-                _ => {
-                    return Err(format!(
-                        "No se pudo conectar con {} en la PC ({}). Asegúrate de que la PC esté conectada a la misma red Wi-Fi y la aplicación o Synapse estén ejecutándose.",
-                        target_app.name, pc_ip
-                    ));
-                }
-            }
-        }
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (target_app, content, pc_ip_opt);
+        Err("El envío a un PC remoto se inicia desde el teléfono emparejado".into())
     }
 }
 
@@ -701,7 +902,7 @@ async fn dispatch_locally_desktop(
         let url = target_app.web_url.as_deref().unwrap_or(&target_app.uri_scheme);
         app.opener().open_url(url, None::<&str>)
             .map_err(|e| format!("Error al abrir portal web: {}", e))?;
-        return Ok(format!("Abriendo {} en el navegador ({})", target_app.name, url));
+        return Ok(format!("Orden entregada al navegador para {} ({})", target_app.name, url));
     }
 
     let uri = if target_app.uri_scheme.ends_with("=") {
@@ -719,7 +920,9 @@ async fn dispatch_locally_desktop(
     };
 
     match app.opener().open_url(&uri, None::<&str>) {
-        Ok(_) => Ok(format!("Despachado exitosamente hacia {} ({})", target_app.name, uri)),
+        // Entregar la URI no demuestra que la ventana esté visible: se informa
+        // la entrega, no una ejecución comprobada.
+        Ok(_) => Ok(format!("Orden entregada a {} ({})", target_app.name, uri)),
         Err(err) => {
             let client = reqwest::Client::new();
             let endpoint = format!("http://127.0.0.1:{}/synapse", target_app.port);
@@ -731,7 +934,7 @@ async fn dispatch_locally_desktop(
 
             match client.post(&endpoint).json(&payload).send().await {
                 Ok(resp) if resp.status().is_success() => {
-                    Ok(format!("Despachado a través de endpoint HTTP LAN ({})", endpoint))
+                    Ok(format!("Orden entregada a {} por su endpoint local ({})", target_app.name, endpoint))
                 }
                 _ => Err(format!("No se pudo abrir {}. Asegúrate de tener la app instalada ({})", target_app.name, err)),
             }
@@ -739,72 +942,39 @@ async fn dispatch_locally_desktop(
     }
 }
 
+/// Receptor LAN del PC.
+///
+/// Solo enruta: la autorización vive en `peer::decide` y la ejecución local en
+/// `dispatch_locally_desktop`. Una orden autorizada sigue un único camino, sin
+/// reintentos ni rutas alternativas sin credencial.
 #[cfg(desktop)]
 fn start_lan_http_server(app: tauri::AppHandle) {
-    tokio::spawn(async move {
-        if let Ok(listener) = tokio::net::TcpListener::bind("0.0.0.0:49295").await {
-            while let Ok((mut socket, _)) = listener.accept().await {
-                let app_handle = app.clone();
-                tokio::spawn(async move {
-                    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-                    let mut buf = [0u8; 8192];
-                    if let Ok(n) = socket.read(&mut buf).await {
-                        if n == 0 { return; }
-                        let req = String::from_utf8_lossy(&buf[..n]);
-
-                        if req.starts_with("OPTIONS") {
-                            let resp = "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type, Authorization, *\r\n\r\n";
-                            let _ = socket.write_all(resp.as_bytes()).await;
-                            return;
-                        }
-
-                        if req.starts_with("GET /status") {
-                            let body = "{\"status\":\"online\",\"app\":\"Aurora Synapse\",\"version\":\"1.0.0\",\"protocol\":\"synapse-v1\"}";
-                            let resp = format!(
-                                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{}",
-                                body.len(), body
-                            );
-                            let _ = socket.write_all(resp.as_bytes()).await;
-                            return;
-                        }
-
-                        if req.starts_with("POST /synapse") || req.starts_with("POST /dispatch") {
-                            if let Some(idx) = req.find("\r\n\r\n") {
-                                let body_str = &req[idx + 4..];
-                                if let Ok(json) = serde_json::from_str::<serde_json::Value>(body_str) {
-                                    let app_id = json["app_id"].as_str().or(json["app"].as_str()).unwrap_or("");
-                                    let content = json["content"].as_str().or(json["url"].as_str()).unwrap_or("");
-
-                                    let apps = get_registered_apps();
-                                    if let Some(target) = apps.into_iter().find(|a| a.id == app_id) {
-                                        let res = dispatch_locally_desktop(&app_handle, &target, content).await;
-                                        let status_ok = res.is_ok();
-                                        let msg = res.unwrap_or_else(|e| e);
-                                        let resp_body = serde_json::json!({
-                                            "status": if status_ok { "ok" } else { "error" },
-                                            "message": msg
-                                        }).to_string();
-                                        let resp = format!(
-                                            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{}",
-                                            resp_body.len(), resp_body
-                                        );
-                                        let _ = socket.write_all(resp.as_bytes()).await;
-                                        return;
-                                    }
-                                }
-                            }
-                        }
-
-                        let body = "{\"error\":\"not_found\"}";
-                        let resp = format!(
-                            "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{}",
-                            body.len(), body
-                        );
-                        let _ = socket.write_all(resp.as_bytes()).await;
-                    }
-                });
-            }
-        }
+    // OJO: el setup hook de Tauri corre en el hilo principal FUERA de cualquier
+    // runtime Tokio. `tokio::spawn` ahi entra en panic ("there is no reactor
+    // running") y se lleva la app entera por delante: la ventana no llega a
+    // abrir. `tauri::async_runtime::spawn` usa el runtime global de Tauri y
+    // si funciona desde este contexto.
+    tauri::async_runtime::spawn(async move {
+        let Ok(listener) = tokio::net::TcpListener::bind("0.0.0.0:49295").await else { return; };
+        peer::listening();
+        let handle = app.clone();
+        let dispatch: peer::Dispatcher = Arc::new(move |app_id: &str, content: &str| {
+            let app = handle.clone();
+            let app_id = app_id.to_string();
+            let content = content.to_string();
+            let future: peer::DispatchFuture = Box::pin(async move {
+                let target = get_registered_apps()
+                    .into_iter()
+                    .find(|target| target.id == app_id)
+                    .ok_or_else(|| format!("La aplicación «{app_id}» no figura en el catálogo de este equipo"))?;
+                if matches!(target.status.as_str(), "PROXIMAMENTE" | "INTERNO") {
+                    return Err(format!("{} todavía no está disponible en el ecosistema", target.name));
+                }
+                dispatch_locally_desktop(&app, &target, &content).await
+            });
+            future
+        });
+        peer::serve(listener, dispatch).await;
     });
 }
 
@@ -827,11 +997,23 @@ async fn dispatch_content(
 
     #[cfg(target_os = "android")]
     {
-        // En Android:
-        // Si el destino es la PC, O la app es exclusiva de PC (no soporta Android): enrutar por LAN
-        let is_target_pc = dev_id == "local_pc" || !target_app.platforms.contains(&"android".to_string());
-        if is_target_pc {
+        // En Android el destino es explícito: el PC vinculado o este teléfono.
+        // Un dispositivo descubierto por beacon no acredita un contrato de
+        // despacho; antes se enviaba en silencio a la PC aunque el usuario
+        // hubiera elegido otro equipo.
+        if dev_id == "local_pc" {
             return dispatch_to_pc(&target_app, &content, pc_ip.as_deref()).await;
+        }
+        if dev_id != "android_phone" {
+            return Err(format!(
+                "«{dev_id}» es otro dispositivo descubierto en la red. Este Synapse no tiene un despacho verificado hacia él: elige «Este teléfono» o «Este equipo»."
+            ));
+        }
+        if !target_app.platforms.contains(&"android".to_string()) && !target_app.is_web_app {
+            return Err(format!(
+                "{} no está disponible en Android. Elige «Este equipo» en el selector de dispositivo para enviarla al PC.",
+                target_app.name
+            ));
         }
 
         // Si es aplicación web en Android:
@@ -840,7 +1022,7 @@ async fn dispatch_content(
             let url = target_app.web_url.as_deref().unwrap_or(&target_app.uri_scheme);
             app.opener().open_url(url, None::<&str>)
                 .map_err(|e| format!("Error al abrir portal web: {}", e))?;
-            return Ok(format!("Abriendo {} en el navegador ({})", target_app.name, url));
+            return Ok(format!("Orden entregada al navegador para {} ({})", target_app.name, url));
         }
 
         // Preparar URI scheme
@@ -865,7 +1047,7 @@ async fn dispatch_content(
                 })
             );
             match res {
-                Ok(_) => return Ok(format!("Abriendo {} en el teléfono", target_app.name)),
+                Ok(_) => return Ok(format!("Orden entregada a {} en el teléfono", target_app.name)),
                 Err(err) => return Err(format!("No se pudo abrir {} en Android: {}", target_app.name, err)),
             }
         }
@@ -873,7 +1055,7 @@ async fn dispatch_content(
         // Fallback genérico a opener
         use tauri_plugin_opener::OpenerExt;
         match app.opener().open_url(&uri, None::<&str>) {
-            Ok(_) => Ok(format!("Abriendo {} ({})", target_app.name, uri)),
+            Ok(_) => Ok(format!("Orden entregada a {} ({})", target_app.name, uri)),
             Err(e) => Err(format!("No se pudo abrir {}: {}", target_app.name, e)),
         }
     }
@@ -881,11 +1063,52 @@ async fn dispatch_content(
     #[cfg(not(target_os = "android"))]
     {
         // En escritorio (Windows):
-        if dev_id == "android_phone" && !target_app.platforms.contains(&"windows".to_string()) {
-            return Ok(format!("{} está instalada en tu teléfono Android.", target_app.name));
+        if dev_id == "local_pc" {
+            return dispatch_locally_desktop(&app, &target_app, &content).await;
         }
 
-        dispatch_locally_desktop(&app, &target_app, &content).await
+        // PC → teléfono: Android no permite abrir una app de otro equipo y el
+        // teléfono no expone un contrato remoto de apertura. La única orden
+        // remota verificada es la transferencia a la Super Galería conectada.
+        if target_app.id != "lienzo" {
+            return Err(format!(
+                "«{}» no admite órdenes remotas desde el PC: Android no permite abrir apps de otro dispositivo y no existe un contrato de apertura. Ábrela en el teléfono.",
+                target_app.name
+            ));
+        }
+        let device = mcp::devices::find(&dev_id).ok_or_else(|| {
+            format!("El destino {dev_id} ya no está anunciado en la red local; el descubrimiento se actualiza cada minuto")
+        })?;
+        if device.target_app != "supergallery" {
+            return Err(format!(
+                "El dispositivo elegido ({}) no es Super Galería; no se envió nada",
+                device.device_name
+            ));
+        }
+        let configured = mcp::gallery::configured_url().ok_or_else(|| {
+            "Super Galería no está conectada desde este PC. Conéctala con su código temporal en Ajustes → Conexiones."
+                .to_string()
+        })?;
+        let configured = mcp::gallery::validate_url(&configured)?;
+        if configured.host_str() != Some(device.address.as_str()) {
+            return Err(format!(
+                "El dispositivo elegido ({}) no coincide con la Super Galería conectada ({}). Elige el destino correcto o vuelve a conectarla.",
+                device.device_name,
+                configured.host_str().unwrap_or("desconocido")
+            ));
+        }
+        let path = std::path::Path::new(content.trim());
+        if content.trim().is_empty() || !path.is_absolute() {
+            return Err(
+                "Android no permite abrir una app del teléfono desde el PC. Para enviar algo a Super Galería, elige un archivo con ruta absoluta."
+                    .into(),
+            );
+        }
+        let result = mcp::gallery::send(&content).await?;
+        Ok(format!(
+            "Archivo recibido por Super Galería ({} bytes, SHA-256 {}). La apertura remota de la app no es una operación soportada por Android.",
+            result["bytes"], result["sha256"]
+        ))
     }
 }
 
@@ -1027,7 +1250,7 @@ fn is_version_greater(remote: &str, current: &str) -> bool {
 #[tauri::command]
 async fn check_for_updates() -> Result<UpdateCheckResult, String> {
     let client = reqwest::Client::builder()
-        .user_agent("Aurora-Synapse/1.0.0")
+        .user_agent(format!("Aurora-Synapse/{}", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -1104,6 +1327,79 @@ pub fn run() {
         || std::env::var("SYNAPSE_DEV").is_ok()
         || std::env::var("SYNAPSE_MULTI_INSTANCE").is_ok();
 
+    #[cfg(desktop)]
+    if let Some(position) = std::env::args().position(|argument| argument == "--gallery-pair") {
+        let address = std::env::args().nth(position + 1).unwrap_or_default();
+        let mut code = String::new();
+        std::io::stdin().read_line(&mut code).ok();
+        match tauri::async_runtime::block_on(mcp::gallery::pair(&address, code.trim())) {
+            Ok(result) => println!("{result}"),
+            Err(error) => { eprintln!("{error}"); std::process::exit(1); }
+        }
+        return;
+    }
+
+    // Modo stdio: el binario se lanza como subproceso y habla MCP por
+    // entrada/salida estándar, sin abrir la interfaz.
+    #[cfg(desktop)]
+    if std::env::args().any(|argument| argument == "--mcp-stdio") {
+        #[cfg(windows)]
+        use std::os::windows::process::CommandExt;
+        let opener: mcp::dispatch::UriOpener = Arc::new(|uri: &str| {
+            let mut command = std::process::Command::new("cmd");
+            #[cfg(windows)]
+            command
+                .raw_arg("/C")
+                .raw_arg(format!("start \"\" \"{uri}\""));
+            #[cfg(not(windows))]
+            command.arg("xdg-open").arg(uri);
+            command
+                .spawn()
+                .map(|_| ())
+                .map_err(|error| format!("Error al abrir {uri}: {error}"))
+        });
+        tauri::async_runtime::block_on(mcp::serve_stdio(opener));
+        return;
+    }
+
+    // Modo headless: solo el puente MCP, sin interfaz. El puerto se puede
+    // fijar con AURORA_SYNAPSE_MCP_ADDR (por defecto 127.0.0.1:49296).
+    #[cfg(desktop)]
+    if std::env::args().any(|argument| argument == "--mcp-http") {
+        let addr = std::env::var("AURORA_SYNAPSE_MCP_ADDR")
+            .unwrap_or_else(|_| mcp::server::DEFAULT_BIND_ADDR.to_string());
+        let opener: mcp::dispatch::UriOpener = Arc::new(|uri: &str| {
+            let mut command = std::process::Command::new("cmd");
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                command
+                    .raw_arg("/C")
+                    .raw_arg(format!("start \"\" \"{uri}\""));
+            }
+            #[cfg(not(windows))]
+            command.arg("xdg-open").arg(uri);
+            command
+                .spawn()
+                .map(|_| ())
+                .map_err(|error| format!("Error al abrir {uri}: {error}"))
+        });
+        let result = tauri::async_runtime::block_on(mcp::start_fixed(opener, &addr));
+        match result {
+            Ok(port) => {
+                println!("aurora-synapse: puente MCP activo en http://{addr}/mcp (puerto {port})");
+                // El proceso se queda vivo hasta que lo termine el supervisor.
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(3600));
+                }
+            }
+            Err(error) => {
+                eprintln!("aurora-synapse: no se pudo arrancar el puente MCP en {addr}: {error}");
+                std::process::exit(1);
+            }
+        }
+    }
+
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init());
@@ -1114,6 +1410,18 @@ pub fn run() {
             tauri::plugin::Builder::<tauri::Wry, ()>::new("synapse_launcher")
                 .setup(|app, api| {
                     let handle = api.register_android_plugin("com.biglexj.aurorasynapse", "LauncherPlugin")?;
+                    let storage = handle.clone();
+                    mcp::gallery_credentials::set_mobile_store(std::sync::Arc::new(move |token| {
+                        let result = storage.run_mobile_plugin::<serde_json::Value>("galleryCredential", serde_json::json!({"token": token}))
+                            .map_err(|_| "No se pudo acceder al almacén seguro Android".to_string())?;
+                        Ok(result["token"].as_str().unwrap_or_default().to_string())
+                    }));
+                    mcp::gallery::set_config_dir(app.path().app_data_dir()?);
+                    let peer_store = handle.clone();
+                    peer::set_store(std::sync::Arc::new(move |token| {
+                        let result = peer_store.run_mobile_plugin::<serde_json::Value>("peerCredential", serde_json::json!({"token":token})).map_err(|_| "No se pudo acceder a la conexión del PC".to_string())?;
+                        Ok(result["token"].as_str().unwrap_or_default().to_string())
+                    }));
                     app.manage(handle);
                     Ok(())
                 })
@@ -1123,17 +1431,15 @@ pub fn run() {
 
     #[cfg(desktop)]
     {
-        // En producción/estable protegemos contra múltiples instancias.
-        // En modo desarrollo permitimos coexistencia con la versión instalada.
-        if !is_dev_mode {
-            builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        // La interfaz comparte puertos LAN/MCP fijos también en desarrollo.
+        // Una segunda ventana en otro proceso no puede usar el receptor de la primera.
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
                 if let Some(w) = app.get_webview_window("main") {
                     let _ = w.unminimize();
                     let _ = w.show();
                     let _ = w.set_focus();
                 }
-            }));
-        }
+        }));
 
         builder = builder
             .plugin(tauri_plugin_window_state::Builder::default().build())
@@ -1148,6 +1454,25 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 start_lan_http_server(_app.handle().clone());
+
+                // Puente MCP del ecosistema: se expone solo en loopback porque
+                // concede control sobre el resto de las aplicaciones.
+                {
+                    use tauri_plugin_opener::OpenerExt;
+                    let handle = _app.handle().clone();
+                    let opener: mcp::dispatch::UriOpener = Arc::new(move |uri: &str| {
+                        handle
+                            .opener()
+                            .open_url(uri, None::<&str>)
+                            .map_err(|error| format!("Error al abrir {uri}: {error}"))
+                    });
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(error) = mcp::start(opener).await {
+                            eprintln!("[aurora-synapse mcp] no se pudo arrancar el puente: {error}");
+                        }
+                    });
+                }
+
                 let app = _app;
                 // System Tray Menu Setup
                 let show_item = MenuItemBuilder::with_id("show", "Abrir Aurora Synapse").build(app)?;
@@ -1165,8 +1490,15 @@ pub fn run() {
                     "Aurora Synapse · Orquestador Universal"
                 };
 
+                let tray_icon = Image::from_bytes(include_bytes!("../icons/tray-icon.png"))
+                    .unwrap_or_else(|_| app.default_window_icon().unwrap().clone());
+
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.set_icon(tray_icon.clone());
+                }
+
                 let _tray = TrayIconBuilder::new()
-                    .icon(app.default_window_icon().unwrap().clone())
+                    .icon(tray_icon)
                     .tooltip(tray_tooltip)
                     .menu(&tray_menu)
                     .show_menu_on_left_click(false)
@@ -1250,6 +1582,16 @@ pub fn run() {
             get_registered_apps,
             classify_intent,
             get_paired_devices,
+            pair_gallery,
+            gallery_connection,
+            gallery_devices,
+            mcp_server_status,
+            create_pc_invitation,
+            cancel_pc_invitation,
+            pc_pairing_status,
+            scan_pc_qr,
+            connect_pc_from_qr,
+            paired_pc_status,
             dispatch_content,
             get_synapse_settings,
             set_autostart_setting,

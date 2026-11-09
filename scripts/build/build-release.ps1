@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Script oficial de lanzamiento de Release para Aurora Synapse.
 
@@ -53,6 +53,25 @@ $root = if (Test-Path (Join-Path $PSScriptRoot "package.json")) {
 $releaseDir = Join-Path $root "release"
 $packageFile = Join-Path $root "package.json"
 
+# Suma SHA-256 de un archivo.
+# No se usa Get-FileHash: en Windows PowerShell 5.1 el PSModulePath puede
+# apuntar antes a los modulos de PowerShell 7 (windowsapps\microsoft.powershell_7.*),
+# y al cargar Microsoft.PowerShell.Utility se obtiene la version 7, que 5.1 no
+# puede usar. El cmdlet queda "no reconocido" y el release se cae al final.
+# Esta implementacion con .NET funciona igual en 5.1 y en 7+.
+function Get-FileSha256 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            return ([System.BitConverter]::ToString($sha.ComputeHash($stream))).Replace("-", "")
+        }
+        finally { $sha.Dispose() }
+    }
+    finally { $stream.Dispose() }
+}
+
 # 1. Determinar Versión Canónica
 if (-not $Version) {
     if (Test-Path $packageFile) {
@@ -79,16 +98,16 @@ if (-not $SkipBuild) {
     bun run build
     if ($LASTEXITCODE -ne 0) { throw "Error compilando frontend estático." }
 
-    # 2.2 Windows Desktop Build (Tauri v2 + NSIS)
-    Write-Host "[2/5] Compilando ejecutable e instalador oficial de Windows..." -ForegroundColor Yellow
-    bun run tauri build
-    if ($LASTEXITCODE -ne 0) { throw "La compilación de escritorio falló con código $LASTEXITCODE" }
-
-    # 2.3 Android Universal APK Build (si no se omite)
+    # 2.2 Android Universal APK Build (si no se omite)
     if (-not $SkipAndroid) {
-        $androidSdk = "C:\Users\biglexj\AppData\Local\Android\Sdk"
+        # Sin rutas absolutas a disco local (Core: command-scripts-standard, pto 4):
+        # se respeta ANDROID_HOME/ANDROID_SDK_ROOT y, si no, la carpeta estandar
+        # del SDK en el perfil del usuario.
+        $androidSdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME }
+                      elseif ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT }
+                      else { Join-Path $env:LOCALAPPDATA 'Android\Sdk' }
         if (Test-Path $androidSdk) {
-            Write-Host "[3/5] Compilando APK universal autónomo de Android..." -ForegroundColor Yellow
+            Write-Host "[2/5] Compilando APK autónomo de Android (ARM64 / aarch64)..." -ForegroundColor Yellow
             $env:ANDROID_HOME = $androidSdk
             $ndk = Get-ChildItem -Path "$androidSdk\ndk" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($ndk) { $env:NDK_HOME = $ndk.FullName }
@@ -100,18 +119,40 @@ if (-not $SkipBuild) {
                 Set-Content -Path $cargoTomlPath -Value $updatedCargo -NoNewline
             }
 
-            bun run tauri android build --apk --debug
-
-            # Restaurar crate-type para desktop
-            $cargoContent = Get-Content $cargoTomlPath -Raw
-            $restoredCargo = $cargoContent -replace 'crate-type\s*=\s*\[.*?"cdylib".*?\]', 'crate-type = ["staticlib", "rlib"]'
-            Set-Content -Path $cargoTomlPath -Value $restoredCargo -NoNewline
+            $androidExit = 0
+            try {
+                bun run tauri android build --apk --debug --target aarch64
+                $androidExit = $LASTEXITCODE
+            }
+            finally {
+                # Restaurar crate-type para desktop
+                $cargoContent = Get-Content $cargoTomlPath -Raw
+                $restoredCargo = $cargoContent -replace 'crate-type\s*=\s*\[.*?"cdylib".*?\]', 'crate-type = ["staticlib", "rlib"]'
+                Set-Content -Path $cargoTomlPath -Value $restoredCargo -NoNewline
+            }
+            # Un APK fallido no puede pasar desapercibido: el release se publica
+            # en GitHub y un artefacto movil ausente es un defecto, no un detalle.
+            if ($androidExit -ne 0) {
+                throw ("La compilacion del APK de Android fallo con codigo $androidExit.`n" +
+                       "Se detiene el release para no publicar un artefacto movil ausente o viejo.`n" +
+                       "Usa -SkipAndroid para publicar solo el instalador de Windows.")
+            }
         } else {
-            Write-Host "[3/5] Android SDK no detectado; omitiendo compilación de APK." -ForegroundColor DarkGray
+            Write-Host "[2/5] Android SDK no detectado; omitiendo compilación de APK." -ForegroundColor DarkGray
         }
     } else {
-        Write-Host "[3/5] Compilación Android omitida (-SkipAndroid)." -ForegroundColor DarkGray
+        Write-Host "[2/5] Compilación Android omitida (-SkipAndroid)." -ForegroundColor DarkGray
     }
+
+    # 2.3 Windows Desktop Build (Tauri v2 + Inno Setup)
+    # Este paso va DESPUES del de Android a proposito: tanto `tauri build` como
+    # `tauri android build` ejecutan el beforeBuildCommand y regeneran dist/.
+    # Si el instalador se generase antes, el candado anti-obsoleto de la
+    # seccion 3 lo rechazaria por ser unos segundos mas viejo que dist/, pese
+    # a contener exactamente el mismo frontend.
+    Write-Host "[3/5] Compilando ejecutable e instalador oficial de Windows..." -ForegroundColor Yellow
+    & "$root\scripts\packaging\Build-Installer.ps1"
+    if ($LASTEXITCODE -ne 0) { throw "La compilación de escritorio falló con código $LASTEXITCODE" }
 } else {
     Write-Host "[1-3/5] Compilación omitida (-SkipBuild)..." -ForegroundColor DarkGray
 }
@@ -126,12 +167,41 @@ $installerTarget = Join-Path $releaseDir "Aurora-Synapse-v$Version-Setup.exe"
 $apkTarget = Join-Path $releaseDir "Aurora-Synapse-v$Version.apk"
 
 # Copiar instalador Windows
-$nsisFound = Get-ChildItem -Path "$bundleDir\nsis\*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($nsisFound) {
-    Copy-Item $nsisFound.FullName -Destination $installerTarget -Force
-    Write-Host "  • Instalador Windows: $installerTarget" -ForegroundColor Green
-} elseif (-not (Test-Path $installerTarget)) {
-    throw "No se encontró el instalador generado en $bundleDir\nsis ni en $installerTarget"
+# El empaquetador de Inno escribe directamente en release.
+if (-not (Test-Path -LiteralPath $installerTarget)) {
+    throw "No se encontró el instalador Inno: $installerTarget"
+}
+
+# Candado anti-instalador-obsoleto --------------------------------------------
+# Con -SkipBuild no se compila nada, pero el script aun podia publicar un
+# instalador de una carrera anterior de la MISMA version. Se comprueba que el
+# instalador sea mas nuevo que el codigo fuente y que dist/, igual que hace el
+# empaquetador con el ejecutable. Regla de Core:
+# Docs/global/architecture/command-scripts-standard.md, principio 2.
+$installerItem = Get-Item -LiteralPath $installerTarget
+$watch = @(
+    (Join-Path $root 'src'),
+    (Join-Path $root 'src-tauri\src'),
+    (Join-Path $root 'dist'),
+    (Join-Path $root 'src-tauri\Cargo.toml'),
+    (Join-Path $root 'src-tauri\tauri.conf.json'),
+    (Join-Path $root 'package.json')
+)
+$staleSource = $null
+foreach ($p in $watch) {
+    if (-not (Test-Path -LiteralPath $p)) { continue }
+    $i = if (Test-Path -LiteralPath $p -PathType Container) {
+        Get-ChildItem -LiteralPath $p -Recurse -File -Force -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
+    else { Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue }
+    if ($i -and $i.LastWriteTime -gt $installerItem.LastWriteTime) { $staleSource = $i; break }
+}
+if ($staleSource) {
+    throw ("El instalador es MAS VIEJO que el codigo fuente; no se puede publicar:`n" +
+           "  instalador : $($installerItem.LastWriteTime.ToString('dd/MM HH:mm:ss'))  $installerTarget`n" +
+           "  fuente     : $($staleSource.LastWriteTime.ToString('dd/MM HH:mm:ss'))  $($staleSource.FullName)`n" +
+           "Vuelve a compilar el instalador con scripts\packaging\Build-Installer.ps1.")
 }
 
 # Copiar APK Android si existe
@@ -144,6 +214,12 @@ $foundApk = $apkCandidates | Where-Object { Test-Path $_ } | Select-Object -Firs
 if ($foundApk) {
     Copy-Item $foundApk -Destination $apkTarget -Force
     Write-Host "  • APK Android: $apkTarget" -ForegroundColor Green
+    $workspaceRoot = Split-Path -Parent $root
+    $releasesGlobalDir = Join-Path $workspaceRoot '12. Releases\Aurora-Synapse'
+    if (Test-Path -LiteralPath $releasesGlobalDir) {
+        Copy-Item -LiteralPath $apkTarget -Destination (Join-Path $releasesGlobalDir (Split-Path $apkTarget -Leaf)) -Force
+        Write-Host "==> APK sincronizado en 12. Releases\Aurora-Synapse\$(Split-Path $apkTarget -Leaf)" -ForegroundColor Green
+    }
 }
 
 # Generar Checksums SHA-256
@@ -151,10 +227,31 @@ Write-Host "[4/5] Generando sumas de verificación criptográficas SHA-256..." -
 $hashFile = Join-Path $releaseDir "SHA256SUMS.txt"
 if (Test-Path $hashFile) { Remove-Item $hashFile -Force }
 
-Get-ChildItem -Path $releaseDir -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
-    $hash = Get-FileHash -Path $_.FullName -Algorithm SHA256
-    "$($hash.Hash)  $($_.Name)" | Out-File -FilePath $hashFile -Append -Encoding utf8
-    Write-Host "    $($_.Name) -> $($hash.Hash)" -ForegroundColor DarkGray
+# Solo se resumen los artefactos que se van a publicar en la release. La
+# carpeta release/ puede conservar artefactos de versiones anteriores, que no
+# se suben: incluirlos aqui generaba entradas huerfanas que el usuario no
+# podria verificar porque los ficheros no existirian en la release.
+$publishedAssets = @($installerTarget)
+if (Test-Path -LiteralPath $apkTarget) { $publishedAssets += $apkTarget }
+
+# Sin BOM: sha256sum -c y las herramientas POSIX fallan con la primera linea
+# si el fichero arranca con BOM UTF-8. Se escribe con UTF-8 sin BOM.
+$hashLines = New-Object System.Collections.Generic.List[string]
+foreach ($asset in $publishedAssets) {
+    $hash = Get-FileSha256 -Path $asset
+    $hashLines.Add("$hash  $([System.IO.Path]::GetFileName($asset))")
+    Write-Host "    $([System.IO.Path]::GetFileName($asset)) -> $hash" -ForegroundColor DarkGray
+}
+[System.IO.File]::WriteAllText(
+    $hashFile,
+    (($hashLines -join "`n") + "`n"),
+    [System.Text.UTF8Encoding]::new($false)
+)
+$workspaceRoot = Split-Path -Parent $root
+$releasesGlobalDir = Join-Path $workspaceRoot '12. Releases\Aurora-Synapse'
+if (Test-Path -LiteralPath $releasesGlobalDir) {
+    Copy-Item -LiteralPath $hashFile -Destination (Join-Path $releasesGlobalDir (Split-Path $hashFile -Leaf)) -Force
+    Write-Host "==> SHA256SUMS.txt sincronizado en 12. Releases\Aurora-Synapse" -ForegroundColor Green
 }
 
 if ($LocalOnly) {
@@ -186,8 +283,9 @@ if ($hasRemote) {
 $releaseNotesFile = Join-Path $root "RELEASE_MESSAGE.md"
 try { gh release delete "v$Version" --yes 2>$null } catch {}
 
-$assetsToUpload = @($installerTarget, $hashFile)
-if (Test-Path $apkTarget) { $assetsToUpload += $apkTarget }
+# Se sube exactamente lo que se resumio en el paso 4, mas el fichero de
+# sumas. $publishedAssets ya excluye los artefactos historicos de release/.
+$assetsToUpload = @($publishedAssets) + $hashFile
 
 if (-not $ReleaseNotes) {
     if (Test-Path $releaseNotesFile) {
@@ -212,7 +310,10 @@ if ($SkipAuroraUpload) {
 } else {
     Write-Host "Notificando metadata a Aurora Blog (biglexj.com)..." -ForegroundColor Yellow
 
-    $auroraEnvPath = "D:\Proyectos\biglexj\Aurora---Blog\frontend\.env"
+    # Sin rutas absolutas al disco local (Core: command-scripts-standard, pto 4):
+    # el repositorio de Aurora Blog es hermano de este en el workspace.
+    $workspaceRoot = Split-Path -Parent $root
+    $auroraEnvPath = Join-Path $workspaceRoot 'Aurora---Blog\frontend\.env'
     if (Test-Path $auroraEnvPath) {
         $auroraEnv = Get-Content $auroraEnvPath -Raw -Encoding UTF8
         $serviceKey = [regex]::Match($auroraEnv, '(?m)^SUPABASE_SERVICE_ROLE_KEY=(.+)$').Groups[1].Value.Trim()
@@ -226,7 +327,7 @@ if ($SkipAuroraUpload) {
             } else { "Aurora Synapse v$Version" }
 
             try {
-                $sha256Hash = (Get-FileHash -Path $installerTarget -Algorithm SHA256).Hash.ToLower()
+                $sha256Hash = (Get-FileSha256 -Path $installerTarget).ToLower()
                 $vParts = $Version.Split('.')
                 $calcVersionCode = if ($vParts.Length -ge 3) {
                     [int]$vParts[0] * 10000 + [int]$vParts[1] * 100 + [int]$vParts[2]

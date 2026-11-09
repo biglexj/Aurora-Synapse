@@ -1,23 +1,30 @@
-# ⚡ Aurora Synapse v1.0.0 — Primera Edición Oficial
+# ⚡ Aurora Synapse v1.0.1 — Instalador modernizado e Integración DaVinci Flow MCP
 
-¡Llega oficialmente la versión 1.0.0 de **Aurora Synapse**! La primera edición de producción del orquestador universal, enrutador inteligente de intenciones y Launchpad central para todas las aplicaciones y herramientas del ecosistema **biglexj**.
-
----
-
-### ✨ Novedades Destacadas de la Versión 1.0.0:
-
-- 🚀 **Primera Versión Oficial de Producción (v1.0.0)**: Consolidación del núcleo del orquestador universal con estabilidad certificada para Windows y Android.
-- 🛍️ **Integración Oficial de Pixi Store**: Reconocimiento automático y acceso directo al portal oficial de temas interactivos y presets (`https://pixi.qzz.io/`).
-- 📱 **Lanzamiento Nativo en Android**: Apertura fluida y directa de aplicaciones móviles del ecosistema (**Luna Fetch**, **Super Galería** y **Ely-Tesia**) mediante Intents nativos y enlaces universales.
-- 🖥️ **Despacho Universal Móvil ➔ PC LAN**: Botón contextual inteligente `🖥️ Enviar a PC` para despachar descargas remotas hacia **Gallery-DL GUI** y **Luna Fetch** en la PC a través de la red local (puertos `18274` y `49295`).
-- 🌐 **Diferenciación Visual por Sistema Operativo**: Nuevos badges de plataforma (`📱 ANDROID`, `🖥️ PC SOLO`, `📱/🖥️ HÍBRIDO`, `🌐 WEB`) y pestañas de filtrado por Sistema Operativo.
-- ⚙️ **Configuración LAN con Test de Conexión**: Selector de dirección IP de la PC con memoria persistente y botón interactivo para probar conectividad en tiempo real.
-- 🛡️ **Instancia Única Inteligente (Single Instance)**: Bloqueo de instancias duplicadas en producción con re-enfoque automático de la ventana activa, garantizando exactamente un icono en la bandeja del sistema.
-- 💻 **Coexistencia Limpia Dev & Producción**: La versión instalada y el entorno de desarrollo pueden ejecutarse simultáneamente sin conflictos de nombrado o IPC.
-- 🔄 **Sistema Canónico de Auto-Actualización**: Comprobación silenciosa en arranque, diálogo interactivo con sanitización canónica de notas y avisos flotantes de última versión.
-- 🎨 **Identidad Visual Oficial**: Icono oficial integrado con fondo unificado, actualización del emblema de DaVinci Flow a su diseño moderno de timeline y sombras tonales Material 3 Expressive.
-- 📦 **Distribución Unificada**: Instalador oficial único para Windows (`Aurora-Synapse-v1.0.0-Setup.exe` con icono NSIS personalizado) y APK universal autónomo para Android (`Aurora-Synapse-v1.0.0.apk`).
+**Aurora Synapse 1.0.1** moderniza el instalador oficial de Windows con la plantilla nativa de Biglex en Inno Setup e incorpora **DaVinci Flow** al puente universal MCP, permitiendo la automatización de DaVinci Resolve y la descarga organizada de medios mediante Luna Fetch.
 
 ---
 
-💖 Desarrollado por **Biglex J** (2026) · [biglexj.com](https://www.biglexj.com)
+### Novedades destacadas
+
+- **Integración con DaVinci Flow (MCP):** Expone 7 herramientas nativas sobre stdio para interactuar con DaVinci Resolve (inspección de estado, captura de subtítulos, catálogo de plantillas, inserción de títulos nativos, efectos Fusion animados y subtitulado).
+- **Descarga e importación con Luna Fetch:** Permite descargar medios (video o música) desde cualquier enlace e importarlos automáticamente clasificados en el Media Pool de DaVinci Resolve (`Videos` y `Música`).
+- **Instalador de Windows modernizado (Inno Setup):** Pantalla única de bienvenida con ruta editable, esquinas nativas de Windows 11, detección de tema claro/oscuro e instalación por usuario sin elevación ni instalaciones paralelas.
+- **Build verificado y candado anti-obsolescencia:** El empaquetador comprueba que el ejecutable generado sea estrictamente más reciente que el código fuente y que `dist/`, evitando publicar binarios desactualizados.
+- **Coherencia de versión en todo el ecosistema:** Versión 1.0.1 unificada en la interfaz (*Acerca de*), el actualizador automático y el endpoint de estado HTTP (`GET /status`).
+
+---
+
+### Distribución
+
+- **Windows x64:** `Aurora-Synapse-v1.0.1-Setup.exe` (Inno Setup, carpeta `release/`). Instalación por usuario, sin elevación.
+- **Android:** `Aurora-Synapse-v1.0.1.apk` (APK autónomo optimizado para arquitectura ARM64).
+- **Integridad:** `SHA256SUMS.txt` con las sumas SHA-256 de los artefactos oficiales. Verificar con `sha256sum -c SHA256SUMS.txt`.
+
+> Requiere **WebView2 Runtime** en Windows. Si existía una instalación previa, consultar [`packaging/windows/MIGRATION.md`](packaging/windows/MIGRATION.md).
+
+---
+
+### Soporte
+
+- **Sitio oficial:** https://www.biglexj.com/
+- **GitHub:** https://github.com/biglexj

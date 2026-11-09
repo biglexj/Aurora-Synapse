@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { publishRelease } from "../../Scripts/releases/aurora-publisher.ts";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
@@ -33,7 +34,7 @@ const help = `Aurora Synapse: mise <dev|build|check|test|release|publish> [opcio
   build    Compilar frontend y binario de escritorio sin generar instalador.
   check    Verificar tipos de TypeScript y el codigo Rust sin emitir artefactos de distribucion.
   test     Ejecutar las pruebas unitarias del modulo Rust del puente MCP.
-  release  Generar instalador Inno Setup, APK y SHA256SUMS.txt en release/.
+  release  [--skip-android] Generar instalador Inno Setup, APK y SHA256SUMS.txt en release/.
   publish  [github|all] Publicar en GitHub y sincronizar ficha en Aurora (requiere autorizacion explicita).
   --plan   Mostrar los comandos o el plan sin ejecutar acciones ni escribir.
   --check  Para publish: verificar requisitos locales y remotos sin escribir.
@@ -149,14 +150,15 @@ export async function main(args = Bun.argv.slice(2)): Promise<number> {
         return 0;
     }
 
-    if (action === "publish") {
-        return handlePublish(rest);
-    }
 
-    assertKnownOptions(rest, ["--plan"]);
-    const positional = rest.filter((arg) => !arg.startsWith("-"));
-    if (positional.length > 0) {
-        throw new Error(`La tarea "${action}" no admite argumentos posicionales: ${positional.join(", ")}.`);
+    if (action === "publish") {
+        assertKnownOptions(rest, ["--plan", "--check", "--skip-android", "--confirm", "--yes"]);
+    } else {
+        assertKnownOptions(rest, ["--plan", "--skip-android"]);
+        const positional = rest.filter((arg) => !arg.startsWith("-"));
+        if (positional.length > 0) {
+            throw new Error(`La tarea "${action}" no admite argumentos posicionales: ${positional.join(", ")}.`);
+        }
     }
 
     const isPlan = rest.includes("--plan");
@@ -218,15 +220,42 @@ export async function main(args = Bun.argv.slice(2)): Promise<number> {
     }
 
     if (action === "release") {
+        const skipAndroid = rest.includes("--skip-android");
         const psArgs = [
-            "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
-            "-File", "./scripts/build/build-release.ps1", "-LocalOnly",
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "./scripts/build/build-release.ps1",
+            "-LocalOnly",
         ];
+        if (skipAndroid) {
+            psArgs.push("-SkipAndroid");
+        }
         console.log(`release ${appName}\nDirectorio: ${root}\nComando: ${psArgs.join(" ")}`);
         if (isPlan) return 0;
 
         const child = Bun.spawn(psArgs, { cwd: root, stdin: "inherit", stdout: "inherit", stderr: "inherit" });
         return (await child.exited) ?? 0;
+    }
+
+    if (action === "publish") {
+        return publishRelease({
+            slug: "aurora-synapse",
+            appName: "Aurora Synapse",
+            repository: "biglexj/Aurora-Synapse",
+            version: appVersion,
+            versionCode: 10000,
+            projectRoot: root,
+            primaryAssetPattern: new RegExp(`^Aurora-Synapse-.*\\.exe$`, "i"),
+            build: async (isPlan) => {
+                const psArgs = ["powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File","./scripts/build/build-release.ps1","-LocalOnly"];
+                if (isPlan) return 0;
+                const child = Bun.spawn(psArgs, { cwd: root, stdin: "inherit", stdout: "inherit", stderr: "inherit" });
+                return (await child.exited) ?? 0;
+            }
+        }, rest);
     }
 
     throw new Error(`Acción desconocida: ${action}. Usa mise dev, mise build, mise check, mise test, mise release o mise publish.`);

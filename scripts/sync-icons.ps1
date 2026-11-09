@@ -1,7 +1,23 @@
 # Sync & Convert Icons from Source to Aurora-Synapse
-$sourceDir = "D:\Imágenes\Proyectos\DEV\Icon"
-$targetPublicDir = "D:\Proyectos\biglexj\Aurora-Synapse\public\assets\icons"
-$targetAssetsDir = "D:\Proyectos\biglexj\Aurora-Synapse\Assets\icons"
+# La biblioteca canonica se movio a 03_Proyectos/02_Development/Icons/Applications.
+#
+# Sin rutas absolutas al disco local (Core: command-scripts-standard, pto 4):
+# la raiz del proyecto y la carpeta que la contiene se derivan de la ubicacion
+# de este script. La biblioteca de iconos, que vive fuera del workspace, se
+# puede fijar con AURORA_ICON_LIBRARY; si no, se busca en la unidad del
+# workspace.
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$workspaceRoot = Split-Path -Parent $projectRoot
+$driveRoot = (Split-Path -Qualifier $workspaceRoot) + '\'
+
+$sourceDir = if ($env:AURORA_ICON_LIBRARY) {
+    $env:AURORA_ICON_LIBRARY
+} else {
+    Join-Path $driveRoot 'Imágenes\03_Proyectos\02_Development\Icons\Applications'
+}
+
+$targetPublicDir = Join-Path $projectRoot 'public\assets\icons'
+$targetAssetsDir = Join-Path $projectRoot 'assets\icons'
 
 $mappings = @{
     "DaVinciFlow"      = "davinci-flow"
@@ -14,7 +30,6 @@ $mappings = @{
     "MouziFlow"        = "mouziflow"
     "Prisma"           = "prisma"
     "WinTTS"           = "wintts"
-    "codex-go"         = "codex-go"
 }
 
 foreach ($srcFolder in $mappings.Keys) {
@@ -114,11 +129,127 @@ if (Test-Path "$targetAssetsDir\ely-intelligence\ely-intelligence.webp") {
 }
 
 # 4. Aurora Synapse Branding Icons
-$brandingSrcDir = "D:\Proyectos\biglexj\Aurora-Synapse\assets\branding\icons"
-$brandingDestDir = "D:\Proyectos\biglexj\Aurora-Synapse\public\assets\branding\icons"
-if (Test-Path $brandingSrcDir) {
-    New-Item -ItemType Directory -Force -Path $brandingDestDir | Out-Null
+$auroraSrcAppDir = Join-Path $sourceDir "Aurora-Synapse"
+$brandingSrcDir = Join-Path $projectRoot 'assets\branding\icons'
+$brandingDestDir = Join-Path $projectRoot 'public\assets\branding\icons'
+New-Item -ItemType Directory -Force -Path $brandingSrcDir | Out-Null
+New-Item -ItemType Directory -Force -Path $brandingDestDir | Out-Null
+
+if (Test-Path $auroraSrcAppDir) {
+    $mainWebp = Join-Path $auroraSrcAppDir "Aurora-Synapse.webp"
+    $transWebp = Join-Path $auroraSrcAppDir "Aurora-Synapse-transparent.webp"
+    if (Test-Path $mainWebp) {
+        Copy-Item $mainWebp "$brandingSrcDir\icon.webp" -Force
+        Copy-Item $mainWebp "$brandingDestDir\icon.webp" -Force
+        & magick $mainWebp "$brandingSrcDir\icon.png"
+        & magick $mainWebp "$brandingDestDir\icon.png"
+    }
+    if (Test-Path $transWebp) {
+        Copy-Item $transWebp "$brandingSrcDir\icon-transparent.webp" -Force
+        Copy-Item $transWebp "$brandingDestDir\icon-transparent.webp" -Force
+        & magick $transWebp "$brandingSrcDir\icon-transparent.png"
+        & magick $transWebp "$brandingDestDir\icon-transparent.png"
+    }
+} elseif (Test-Path $brandingSrcDir) {
     Copy-Item "$brandingSrcDir\*" "$brandingDestDir\" -Force
+}
+
+# 4b. Iconos de la app para Tauri (escritorio + launcher de Android) ----------
+# Sin este paso, NADA de esta carpeta llegaba al icono del telefono: el set de
+# src-tauri\icons (que es lo que alimenta al launcher de Android) se generaba
+# aparte y el artwork de telefono se veia recortado.
+#
+# Android usa iconos adaptativos de 108x108dp y la mascara del launcher solo
+# deja ver el circulo interior de 66dp. El artwork debe caber AHI dentro o los
+# brazos del emblema se cortan. Por eso la capa foreground se genera con el
+# artwork reducido al 48% del lienzo (1000px -> 480px = 51.8dp) y fondo
+# transparente; la capa background aporta el color.
+$projectDir = $projectRoot
+$tauriIconDir = Join-Path $brandingSrcDir "tauri"
+New-Item -ItemType Directory -Force -Path $tauriIconDir | Out-Null
+
+# Arte maxima dentro del lienzo de 1000px (48% -> 51.8dp, dentro del circulo
+# seguro de 66dp) y porcentaje del lienzo para el icono legacy sin adaptativo.
+$androidFgContentPx = 480
+$androidFgScale = 72
+
+if (Test-Path $mainWebp) {
+    & magick $mainWebp -resize 1024x1024 "$tauriIconDir\icon.png"
+}
+if (Test-Path $transWebp) {
+    # -trim quita el margen transparente del webp y -resize deja el artwork
+    # dentro de la zona segura; -extent lo centra en un lienzo 1000x1000.
+    & magick $transWebp -trim +repage -resize "${androidFgContentPx}x${androidFgContentPx}>" `
+        -gravity center -background none -extent 1000x1000 "$tauriIconDir\icon-android-fg.png"
+}
+& magick -size 1000x1000 xc:white "$tauriIconDir\icon-android-bg.png"
+
+$iconManifest = [ordered]@{
+    default          = "icon.png"
+    bg_color         = "#ffffff"
+    android_fg       = "icon-android-fg.png"
+    android_bg       = "icon-android-bg.png"
+    android_fg_scale = $androidFgScale
+}
+$iconManifestPath = Join-Path $tauriIconDir "icon-manifest.json"
+# Sin BOM: serde_json no acepta BOM al inicio del fichero.
+[System.IO.File]::WriteAllText(
+    $iconManifestPath,
+    ($iconManifest | ConvertTo-Json),
+    [System.Text.UTF8Encoding]::new($false)
+)
+
+Write-Host "Regenerando iconos de Tauri (escritorio + launcher de Android)..." -ForegroundColor Green
+$tauriIconsOut = Join-Path $projectDir "src-tauri\icons"
+Push-Location $projectDir
+try {
+    & bun run tauri icon "$iconManifestPath" --output "$tauriIconsOut"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Fallo la generacion de iconos de Tauri."
+        exit 1
+    }
+}
+finally { Pop-Location }
+
+# El proyecto no tiene target iOS, asi que tauri icon deja un directorio ios
+# huerfano dentro de src-tauri\icons. Se elimina para no ensuciar el repo.
+$strayIosDir = Join-Path $tauriIconsOut "ios"
+if (Test-Path $strayIosDir) {
+    Remove-Item $strayIosDir -Recurse -Force
+}
+# 5. Iconos del ecosistema desde los repos del proyecto ---------------------
+# La biblioteca central de iconos (biblioteca canonica, ver AURORA_ICON_LIBRARY)
+# ya no cubre estas apps, asi que su fuente canonica es el propio repositorio de cada una.
+# Se generan aqui para que el catalogo de Aurora Synapse sea reproducible.
+$ecosystemRoots = @{
+    "aurora"          = Join-Path $workspaceRoot 'Aurora---Blog\AuroraHub\src-tauri\icons\128x128.png'
+    "prisma-upscaler" = Join-Path $workspaceRoot 'Prisma-Upscaler\assets\branding\icons\icon.png'
+    "nubix"           = Join-Path $workspaceRoot 'Nubix\src-tauri\icons\128x128.png'
+}
+$ecosystemTransparent = @{
+    "prisma-upscaler" = Join-Path $workspaceRoot 'Prisma-Upscaler\assets\branding\icons\icon-transparent.png'
+    "nubix"           = Join-Path $workspaceRoot 'Nubix\assets\branding\icons\icon-transparent.png'
+}
+
+foreach ($slug in $ecosystemRoots.Keys) {
+    $src = $ecosystemRoots[$slug]
+    if (-not (Test-Path -LiteralPath $src)) {
+        Write-Host "OMITIDO ${slug}: no existe $src" -ForegroundColor Yellow
+        continue
+    }
+    $dest = Join-Path $targetPublicDir $slug
+    New-Item -ItemType Directory -Force -Path $dest | Out-Null
+    & magick "$src" -quality 92 "$dest\icon.webp"
+    & magick "$src" "$dest\icon.png"
+    Write-Host "Icono del ecosistema generado: $slug" -ForegroundColor Green
+}
+
+foreach ($slug in $ecosystemTransparent.Keys) {
+    $src = $ecosystemTransparent[$slug]
+    if (-not (Test-Path -LiteralPath $src)) { continue }
+    $dest = Join-Path $targetPublicDir $slug
+    New-Item -ItemType Directory -Force -Path $dest | Out-Null
+    & magick "$src" -quality 92 "$dest\icon-transparent.webp"
 }
 
 Write-Host "✅ Icons synchronized and converted to WebP successfully!"

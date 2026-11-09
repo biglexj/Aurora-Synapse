@@ -32,7 +32,12 @@ $deviceId = ($connectedLine.Trim() -split "\s+")[0]
 Write-Host "➔ Dispositivo seleccionado: $deviceId" -ForegroundColor Green
 
 # 2. Check Android SDK & NDK
-$androidSdk = "C:\Users\biglexj\AppData\Local\Android\Sdk"
+# Sin rutas absolutas al disco local (Core: command-scripts-standard, pto 4):
+# se respeta ANDROID_HOME/ANDROID_SDK_ROOT y, si no, la carpeta estandar del
+# SDK en el perfil del usuario.
+$androidSdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME }
+              elseif ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT }
+              else { Join-Path $env:LOCALAPPDATA 'Android\Sdk' }
 $env:ANDROID_HOME = $androidSdk
 
 $ndkPath = Get-ChildItem -Path "$androidSdk\ndk" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -66,7 +71,7 @@ if ($cargoContent -notmatch 'crate-type\s*=\s*\[.*"cdylib".*\]') {
 }
 
 Write-Host "➔ 2/3 Compilando APK autónomo con Tauri CLI..." -ForegroundColor Green
-bun run tauri android build --apk --debug
+bun run tauri android build --apk --debug --target aarch64
 $buildSuccess = ($LASTEXITCODE -eq 0)
 
 # Restore desktop-friendly crate-type for Windows GNU linker

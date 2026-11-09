@@ -2,6 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
+import { GalleryConnectionSettings } from "./features/gallery/GalleryConnectionSettings";
+import { PcQrConnection } from "./features/gallery/PcQrConnection";
+import { McpStatusPanel } from "./features/mcp/McpStatusPanel";
+import {
+  AppConnection,
+  describeConnection,
+  fetchAppConnections,
+} from "./features/mcp/appConnections";
 import { UpdateModalDialog } from "./features/updater/UpdateModalDialog";
 import { Toast } from "./features/updater/Toast";
 import { checkAppUpdates, APP_CURRENT_VERSION } from "./features/updater/updaterService";
@@ -20,7 +28,7 @@ interface AppTarget {
   port: number;
   supported_domains: string[];
   is_web_app: boolean;
-  status: "NUEVA" | "ACTUALIZADA" | "BETA" | "EXPERIMENTAL" | "PROXIMAMENTE" | "DISPONIBLE" | string;
+  status: "BETA" | "EXPERIMENTAL" | "PROXIMAMENTE" | "INTERNO" | "DISPONIBLE" | string;
   platforms: string[];
 }
 
@@ -74,6 +82,13 @@ export default function App() {
     minimize_to_tray: true,
     lan_discovery: true,
   });
+
+  // Panel de estado del puente MCP
+  const [isMcpOpen, setIsMcpOpen] = useState<boolean>(false);
+  const [settingsTab, setSettingsTab] = useState<"connections" | "general">("connections");
+
+  // Conexión en vivo de las apps del catálogo con el puente MCP
+  const [appConnections, setAppConnections] = useState<Record<string, AppConnection>>({});
 
   // LAN PC IP State (Configuración de destino para móvil -> PC)
   const [pcIp, setPcIp] = useState<string>(() => {
@@ -188,6 +203,29 @@ export default function App() {
     };
   }, []);
 
+  // Conexión en vivo de las aplicaciones con el puente MCP.
+  //
+  // Solo tiene sentido en escritorio: el puente arranca en la PC y las apps
+  // conectadas (Gallery-DL, Luna Fetch, Prisma, ...) viven en ella. En movil el
+  // comando responde "sin puente" y no hay nada que pintar.
+  useEffect(() => {
+    if (isMobile) return;
+
+    let active = true;
+    const refresh = async () => {
+      try {
+        const connections = await fetchAppConnections();
+        if (active) setAppConnections(connections);
+      } catch (error) {
+        console.error("Error consultando la conexión de las aplicaciones:", error);
+      }
+    };
+
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 20000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [isMobile]);
+
   const loadInitialData = async () => {
     try {
       const mobileCheck = await invoke<boolean>("is_mobile_platform").catch(() => /Android|iPhone|iPad/i.test(navigator.userAgent));
@@ -239,13 +277,37 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      try {
+        const found = await invoke<DeviceNode[]>("get_paired_devices", { isMobile });
+        if (active) {
+          setDevices(found);
+          setSelectedDevice((current) => {
+            if (found.some((d) => d.id === current)) return current;
+            return isMobile ? "android_phone" : "local_pc";
+          });
+        }
+      } catch { /* conservar el último inventario observado */ }
+    };
+    const timer = window.setInterval(() => { void refresh(); }, 5000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [isMobile]);
+
   const handleDispatch = async (targetAppId?: string, overrideDeviceId?: string) => {
     const appId = targetAppId || classification?.recommended_app_id;
     if (!appId) return;
 
     const targetApp = apps.find((a) => a.id === appId);
-    if (targetApp?.status === "PROXIMAMENTE") {
-      setStatusMessage({ text: `${targetApp.name} estará disponible próximamente en el ecosistema.`, type: "info" });
+    if (targetApp && isUpcomingStatus(targetApp.status)) {
+      setStatusMessage({
+        text:
+          targetApp.status === "INTERNO"
+            ? `${targetApp.name} está en desarrollo interno y todavía no es pública.`
+            : `${targetApp.name} estará disponible próximamente en el ecosistema.`,
+        type: "info",
+      });
       return;
     }
 
@@ -326,6 +388,10 @@ export default function App() {
         matchesCat = !app.is_web_app;
       } else if (selectedCategory === "Web") {
         matchesCat = app.is_web_app;
+      } else if (selectedCategory === "Experimentos") {
+        // Ninguna app declara la categoria "Experimentos": la pestaña agrupa
+        // por estado EXPERIMENTAL. Sin esto la pestana salia siempre vacia.
+        matchesCat = app.status === "EXPERIMENTAL";
       } else {
         matchesCat = app.category === selectedCategory;
       }
@@ -349,27 +415,27 @@ export default function App() {
 
   const recommendedApp = apps.find((a) => a.id === classification?.recommended_app_id);
 
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case "NUEVA":
-        return "badge-nueva";
-      case "ACTUALIZADA":
-        return "badge-actualizada";
-      case "BETA":
-        return "badge-beta";
-      case "EXPERIMENTAL":
-        return "badge-experimental";
-      case "PROXIMAMENTE":
-        return "badge-proximamente";
-      case "DISPONIBLE":
-        return "badge-disponible";
-      default:
-        return "badge-default";
-    }
+  // Etiquetas verificables del catalogo. "NUEVA" y "ACTUALIZADA" se retiraron:
+  // eran valores estaticos que no comparaban la version instalada, asi que no
+  // afirmaban nada comprobable. Todo estado sin etiqueta verificable se
+  // muestra sin badge en lugar de inventar uno.
+  const CATALOG_BADGE_CLASS: Record<string, string> = {
+    BETA: "badge-beta",
+    EXPERIMENTAL: "badge-experimental",
+    PROXIMAMENTE: "badge-proximamente",
+    INTERNO: "badge-interno",
+    DISPONIBLE: "badge-disponible",
   };
 
+  const getStatusBadgeClass = (status: string) => CATALOG_BADGE_CLASS[status] ?? null;
+
+  // Una app INTERNO esta en desarrollo y no es publica: se comporta igual que
+  // una PLEAMENTE (no se puede lanzar todavia).
+  const isUpcomingStatus = (status: string) =>
+    status === "PROXIMAMENTE" || status === "INTERNO";
+
   const getCardActionText = (app: AppTarget) => {
-    if (app.status === "PROXIMAMENTE") return "Próximamente";
+    if (isUpcomingStatus(app.status)) return "Próximamente";
     const hasInput = Boolean(inputText.trim());
     const isAndroidNative = app.platforms?.includes("android");
     const isPcOnly = !isAndroidNative && !app.is_web_app;
@@ -425,7 +491,7 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="header-actions">
           {pendingUpdate && (
             <button
               className="header-update-badge"
@@ -437,6 +503,16 @@ export default function App() {
           )}
 
           <button
+            className="mcp-trigger-btn"
+            title="Estado del puente MCP"
+            aria-label="Estado del puente MCP"
+            onClick={() => setIsMcpOpen(true)}
+          >
+            <span className="mcp-trigger-icon" aria-hidden="true">🔌</span>
+            <span className="mcp-trigger-label">MCP</span>
+          </button>
+
+          <button
             className="settings-trigger-btn"
             title="Configuración de Aurora Synapse"
             onClick={() => setIsSettingsOpen(true)}
@@ -446,11 +522,31 @@ export default function App() {
         </div>
       </header>
 
-      {/* Target Device Switcher (Full Width) */}
-      <section className="device-switcher-section">
-        <div className="device-switcher">
-          <span className="device-label">Dispositivo Destino:</span>
-          <div className="device-pills">
+      {/* Target Device Switcher + Smart Input & Dispatch Area (una sola fila) */}
+      <section className="dispatch-card">
+        <div className="target-bar">
+          <div className="input-group">
+            <input
+              type="text"
+              className="synapse-input"
+              placeholder="Pega un enlace, archivo o texto para enrutar..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleDispatch();
+              }}
+            />
+            <button
+              className="dispatch-btn"
+              disabled={!inputText.trim() || isDispatching}
+              onClick={() => handleDispatch()}
+            >
+              {isDispatching ? "Enviando..." : "Despachar 🚀"}
+            </button>
+          </div>
+
+          <div className="device-pills" role="group" aria-label="Dispositivo destino">
+            <span className="sr-only">Dispositivo Destino:</span>
             {devices.map((dev) => (
               <button
                 key={dev.id}
@@ -462,29 +558,6 @@ export default function App() {
               </button>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Smart Input & Dispatch Area */}
-      <section className="dispatch-card">
-        <div className="input-group">
-          <input
-            type="text"
-            className="synapse-input"
-            placeholder="Pega un enlace (DeviantArt, YouTube, Pixiv), archivo local o texto para enrutar..."
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleDispatch();
-            }}
-          />
-          <button
-            className="dispatch-btn"
-            disabled={!inputText.trim() || isDispatching}
-            onClick={() => handleDispatch()}
-          >
-            {isDispatching ? "Enviando..." : "Despachar 🚀"}
-          </button>
         </div>
 
         {/* Dynamic Recommendation Banner */}
@@ -581,8 +654,9 @@ export default function App() {
           <div className="apps-grid">
             {filteredApps.map((app) => {
               const isRec = classification?.recommended_app_id === app.id;
-              const isUpcoming = app.status === "PROXIMAMENTE";
+              const isUpcoming = isUpcomingStatus(app.status);
               const hasValidImage = app.icon_path && !failedIcons[app.id];
+              const connection = appConnections[app.id];
 
               return (
                 <div
@@ -627,9 +701,22 @@ export default function App() {
                       ) : (
                         <span className="platform-os-badge badge-pc">🖥️ PC SOLO</span>
                       )}
-                      <span className={`status-badge ${getStatusBadgeClass(app.status)}`}>
-                        {app.status}
-                      </span>
+                      {getStatusBadgeClass(app.status) && (
+                        <span className={`status-badge ${getStatusBadgeClass(app.status)}`}>
+                          {app.status}
+                        </span>
+                      )}
+                      {app.status === "INTERNO" && (
+                        <span className="status-badge badge-proximamente">PRÓXIMAMENTE</span>
+                      )}
+                      {connection?.connected ? (
+                        <span
+                          className={`status-badge ${connection.mcpTools ? "badge-mcp" : "badge-linked"}`}
+                          title={describeConnection(connection)}
+                        >
+                          {connection.mcpTools ? "🔌 MCP" : "🔗 EN LÍNEA"}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
 
@@ -662,21 +749,69 @@ export default function App() {
         )}
       </section>
 
+      {/* Panel de estado del MCP */}
+      <McpStatusPanel
+        isOpen={isMcpOpen}
+        isMobile={isMobile}
+        onClose={() => setIsMcpOpen(false)}
+      />
+
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="modal-backdrop" onClick={() => setIsSettingsOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className={`modal-backdrop settings-backdrop ${isMobile ? "settings-mobile" : ""}`} onClick={() => setIsSettingsOpen(false)}>
+          <div className="modal-content settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-header-title">
-                <span className="modal-icon">⚙️</span>
-                <h2>Configuración de Aurora Synapse</h2>
+                <span className="modal-icon" aria-hidden="true">⚙️</span>
+                <h2 id="settings-title">{isMobile ? "Ajustes" : "Configuración de Aurora Synapse"}</h2>
               </div>
-              <button className="modal-close-btn" onClick={() => setIsSettingsOpen(false)}>
+              <button className="modal-close-btn" aria-label="Cerrar ajustes" onClick={() => setIsSettingsOpen(false)}>
                 ✕
               </button>
             </div>
 
-            <div className="modal-body">
+            <nav className="settings-tabs" aria-label="Secciones de ajustes">
+              {([['connections', 'Conexiones'], ['general', 'General']] as const).map(([id, label]) =>
+                <button key={id} type="button" aria-pressed={settingsTab === id} className={settingsTab === id ? "active" : ""} onClick={() => setSettingsTab(id)}>{label}</button>
+              )}
+            </nav>
+            <div className={`modal-body settings-body settings-tab-${settingsTab}`}>
+              {settingsTab === "connections" && <>
+              <GalleryConnectionSettings isMobile={isMobile} />
+              <div className="setting-lan-box">
+                <PcQrConnection isMobile={isMobile} onConnected={handlePcIpChange}>
+                <div className="setting-info">
+                  <span className="setting-title">💻 Dirección IP de la PC (LAN)</span>
+                  <span className="setting-desc">
+                    Permite enviar descargas desde el teléfono hacia Gallery-DL y Luna Fetch ejecutándose en la PC ({pcIp}:49295 / 18274).
+                  </span>
+                </div>
+                <div className="lan-ip-control-row">
+                  <input
+                    type="text"
+                    className="lan-ip-input"
+                    value={pcIp}
+                    placeholder="192.168.1.121"
+                    onChange={(e) => handlePcIpChange(e.target.value)}
+                  />
+                  <button
+                    className={`lan-ping-btn ${pingStatus}`}
+                    disabled={pingStatus === "testing"}
+                    onClick={testPcConnection}
+                  >
+                    {pingStatus === "testing"
+                      ? "⏳ Conectando..."
+                      : pingStatus === "ok"
+                      ? "✅ Conectado"
+                      : pingStatus === "fail"
+                      ? "❌ Sin conexión"
+                      : "🔍 Probar Conexión"}
+                  </button>
+                </div>
+                </PcQrConnection>
+              </div>
+              </>}
+              {settingsTab === "general" && <section className="settings-general" aria-label="Preferencias del dispositivo">
               {/* Theme Preference */}
               <div className="setting-row">
                 <div className="setting-info">
@@ -776,46 +911,15 @@ export default function App() {
 
               <div className="setting-row">
                 <div className="setting-info">
-                  <span className="setting-title">Descubrimiento LAN (Puerto 49295)</span>
-                  <span className="setting-desc">Permite enviar y recibir enlaces y medios entre dispositivos en la misma red local.</span>
+                  <span className="setting-title">Red local</span>
+                  <span className="setting-desc">Conecta tus dispositivos cuando comparten la misma red.</span>
                 </div>
-                <span className="active-badge">Activo</span>
+                <span className="network-label">LAN</span>
               </div>
 
-              <div className="setting-lan-box">
-                <div className="setting-info">
-                  <span className="setting-title">💻 Dirección IP de la PC (LAN)</span>
-                  <span className="setting-desc">
-                    Permite enviar descargas desde el teléfono hacia Gallery-DL y Luna Fetch ejecutándose en la PC ({pcIp}:49295 / 18274).
-                  </span>
-                </div>
-                <div className="lan-ip-control-row">
-                  <input
-                    type="text"
-                    className="lan-ip-input"
-                    value={pcIp}
-                    placeholder="192.168.1.121"
-                    onChange={(e) => handlePcIpChange(e.target.value)}
-                  />
-                  <button
-                    className={`lan-ping-btn ${pingStatus}`}
-                    disabled={pingStatus === "testing"}
-                    onClick={testPcConnection}
-                  >
-                    {pingStatus === "testing"
-                      ? "⏳ Conectando..."
-                      : pingStatus === "ok"
-                      ? "✅ Conectado"
-                      : pingStatus === "fail"
-                      ? "❌ Sin conexión"
-                      : "🔍 Probar Conexión"}
-                  </button>
-                </div>
-              </div>
+              </section>}
 
-              <hr className="modal-divider" />
-
-              <div className="about-section">
+              {settingsTab === "general" && <div className="about-section">
                 <h3>Acerca de Aurora Synapse</h3>
                 <p className="about-text">
                   Orquestador Universal del Ecosistema <strong>Aurora</strong>. Creado por <strong>Biglex J</strong> bajo licencia GNU GPL v2.0 (2026).
@@ -849,7 +953,7 @@ export default function App() {
                     {isCheckingUpdates ? "Buscando..." : "Buscar actualizaciones"}
                   </button>
                 </div>
-              </div>
+              </div>}
             </div>
           </div>
         </div>

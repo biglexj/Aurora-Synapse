@@ -15,6 +15,7 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 36
+    ndkVersion = "29.0.13846066"
     namespace = "com.biglexj.aurorasynapse"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
@@ -23,18 +24,15 @@ android {
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
     }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
             isDebuggable = true
-            isJniDebuggable = true
-            isMinifyEnabled = false
-            packaging {                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
-                jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
-            }
+            isJniDebuggable = false
         }
         getByName("release") {
             isMinifyEnabled = true
@@ -58,6 +56,7 @@ rust {
 }
 
 dependencies {
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.activity:activity-ktx:1.10.1")

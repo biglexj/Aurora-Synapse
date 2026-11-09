@@ -1,0 +1,27 @@
+{
+  "_comentario": [
+    "Configuración de ejemplo para registrar el puente MCP de Aurora Synapse",
+    "como servidor MCP en un cliente de agente. No contiene secretos:",
+    "si el proceso se arranca con AURORA_SYNAPSE_MCP_KEY, el cliente debe",
+    "añadir el encabezado Authorization: Bearer <clave> por su cuenta.",
+    "Sustituye la ruta por la absolute real del binario compilado."
+  ],
+  "mcpServers": {
+    "aurora-synapse": {
+      "command": "D:/Proyectos/biglexj/Aurora-Synapse/src-tauri/target/debug/aurora-synapse.exe",
+      "args": ["--mcp-stdio"],
+      "env": {}
+    }
+  },
+  "_alternativa_http_loopback": {
+    "_comentario": [
+      "Variante por HTTP sobre loopback, para clientes que solo speak HTTP.",
+      "El puerto por defecto es 49296; si está ocupado, Synapse prueba el",
+      "siguiente y el panel muestra el efectivo. Si el proceso se arrancó con",
+      "AURORA_SYNAPSE_MCP_KEY, añade 'headers': {'Authorization': 'Bearer <clave>'}."
+    ],
+    "type": "http",
+    "url": "http://127.0.0.1:49296/mcp",
+    "headers": {}
+  }
+}
