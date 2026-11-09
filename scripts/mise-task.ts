@@ -246,7 +246,6 @@ export async function main(args = Bun.argv.slice(2)): Promise<number> {
             appName: "Aurora Synapse",
             repository: "biglexj/Aurora-Synapse",
             version: appVersion,
-            versionCode: 10000,
             projectRoot: root,
             primaryAssetPattern: new RegExp(`^Aurora-Synapse-.*\\.exe$`, "i"),
             build: async (isPlan) => {
